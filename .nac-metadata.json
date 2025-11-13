@@ -1,0 +1,11 @@
+{
+  "generator": "@newagesmb/api-cli",
+  "generatedAt": "2025-11-13T05:26:44.978Z",
+  "defaultEngine": "sql",
+  "packages": [
+    "email",
+    "twilio",
+    "geocoder",
+    "firebase"
+  ]
+}

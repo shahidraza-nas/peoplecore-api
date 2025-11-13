@@ -1,0 +1,59 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "forceConsistentCasingInFileNames": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false,
+    "paths": {
+      "@core/mongo": [
+        "libs/mongo/src"
+      ],
+      "@core/mongo/*": [
+        "libs/mongo/src/*"
+      ],
+      "@core/sql": [
+        "libs/sql/src"
+      ],
+      "@core/sql/*": [
+        "libs/sql/src/*"
+      ],
+      "@core/email": [
+        "libs/email/src"
+      ],
+      "@core/email/*": [
+        "libs/email/src/*"
+      ],
+      "@core/firebase": [
+        "libs/firebase/src"
+      ],
+      "@core/firebase/*": [
+        "libs/firebase/src/*"
+      ],
+      "@core/geocoder": [
+        "libs/geocoder/src"
+      ],
+      "@core/geocoder/*": [
+        "libs/geocoder/src/*"
+      ],
+      "@core/twilio": [
+        "libs/twilio/src"
+      ],
+      "@core/twilio/*": [
+        "libs/twilio/src/*"
+      ]
+    }
+  }
+}

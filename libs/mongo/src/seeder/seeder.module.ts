@@ -1,0 +1,27 @@
+import { Module, OnModuleInit } from '@nestjs/common';
+import { isPrimaryInstance } from 'src/core/core.utils';
+import { DatabaseModule } from '../database';
+import { SeederService } from './seeder.service';
+
+@Module({
+  imports: [DatabaseModule],
+  providers: [SeederService],
+})
+export class SeederModule implements OnModuleInit {
+  constructor(private _seeder: SeederService) {}
+  async onModuleInit() {
+    if (isPrimaryInstance()) {
+      if (process.env.SEEDER_AWAIT === 'Y') {
+        try {
+          await this._seeder.seed();
+        } catch (err) {
+          console.error('Mongo seeder error: ', err);
+        }
+      } else {
+        this._seeder.seed().catch((err) => {
+          console.error('Mongo seeder error: ', err);
+        });
+      }
+    }
+  }
+}
