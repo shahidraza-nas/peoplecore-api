@@ -19,6 +19,8 @@ import { StateModule } from './sql/state/state.module';
 import { TemplateModule } from './sql/template/template.module';
 import { UserModule } from './sql/user/user.module';
 import { JobLogModule } from './mongo/job-log/job-log.module';
+import { ChatModule } from './sql/chat/chat.module';
+import { ChatMessageModule } from './sql/chat-message/chat-message.module';
 
 export interface CommonModuleOption {
   defaultEngine?: AppEngine;
@@ -49,6 +51,8 @@ export class CommonModule {
       LoginLogModule,
       OtpSessionModule,
       JobLogModule,
+      ChatModule,
+      ChatMessageModule,
     ];
 
     // common providers

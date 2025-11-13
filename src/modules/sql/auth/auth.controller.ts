@@ -6,9 +6,10 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Request, Response } from 'express';
-import { ApiErrorResponses } from 'src/core/core.decorators';
+import { ApiErrorResponses, ResponseCreated } from 'src/core/core.decorators';
 import {
   BadRequest,
+  Created,
   ErrorResponse,
   Forbidden,
   Result,
@@ -18,7 +19,10 @@ import { Owner, OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 import { Roles } from 'src/core/decorators/sql/roles.decorator';
 import { LoginLog } from 'src/modules/mongo/login-log/entities/login-log.entity';
 import { Role } from '../user/role.enum';
+import { User } from '../user/entities/user.entity';
+import { UserService } from '../user/user.service';
 import { AuthService } from './auth.service';
+import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginAsDto } from './dto/login-as.dto';
 import { LogoutDto } from './dto/logout.dto';
@@ -33,7 +37,31 @@ import { TokenAuthGuard } from './strategies/token/token-auth.guard';
 @ApiErrorResponses()
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly userService: UserService,
+  ) {}
+
+  @Public()
+  @ApiOperation({ summary: 'Register new user (Public)' })
+  @ResponseCreated(User)
+  @Post('register')
+  async register(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() body: RegisterDto,
+  ) {
+    const { error, data } = await this.userService.createUser(
+      null,
+      { ...body, role: Role.User },
+    );
+
+    if (error) {
+      return BadRequest(res, { error, message: error.message });
+    }
+
+    return Created(res, { data: { user: data }, message: 'Registration successful. Please login.' });
+  }
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout and clear session' })
