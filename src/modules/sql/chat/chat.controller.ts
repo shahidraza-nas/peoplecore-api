@@ -7,8 +7,10 @@ import {
   Post,
   Put,
   Query,
+  Req,
   Res,
 } from '@nestjs/common';
+import { Request } from 'express';
 import {
   ApiBearerAuth,
   ApiExtraModels,
@@ -277,5 +279,83 @@ export class ChatController {
       });
     }
     return Result(res, { data: { [entity]: data }, message: 'Deleted' });
+  }
+
+  /**
+   * Get my chats list
+   */
+  @Get('chats')
+  @ApiOperation({ summary: 'Get My Chats' })
+  @ResponseGetAll(Chat)
+  async getMyChats(
+    @Res() res: Response,
+    @Owner() owner: OwnerDto,
+    @Query() query: any,
+  ) {
+    const { error, data, count, limit, offset } =
+      await this.chatService.getMyChats(owner, query);
+
+    if (error) {
+      return ErrorResponse(res, {
+        error,
+        message: `${error.message || error}`,
+      });
+    }
+
+    return Result(res, {
+      data: { chats: data, count, limit, offset },
+      message: 'Ok',
+    });
+  }
+
+  /**
+   * Get messages for a specific chat
+   */
+  @Get(':chatUid/messages')
+  @ApiOperation({ summary: 'Get Messages' })
+  @ResponseGetAll(Chat)
+  async getMessages(
+    @Res() res: Response,
+    @Owner() owner: OwnerDto,
+    @Query() query: any,
+    @Param('chatUid') chatUid: string,
+  ) {
+    const { error, data, count, limit, offset } =
+      await this.chatService.getChatMessages(owner, chatUid, query);
+
+    if (error) {
+      return ErrorResponse(res, {
+        error,
+        message: `${error.message || error}`,
+      });
+    }
+
+    return Result(res, {
+      data: { messages: data, count, limit, offset },
+      message: 'Ok',
+    });
+  }
+
+  /**
+   * Mark all messages as read
+   */
+  @Get(':chatUid/messages/readAll')
+  @ApiOperation({ summary: 'Read All Messages' })
+  @ResponseGetAll(Chat)
+  async readAllMessages(
+    @Res() res: Response,
+    @Owner() owner: OwnerDto,
+    @Param('chatUid') chatUid: string,
+  ) {
+    await this.chatService.readAllMessages({
+      owner,
+      action: 'readAllMessages',
+      payload: { chatUid },
+    } as any);
+
+    return Result(res, {
+      data: {},
+      message: 'Ok',
+    });
   }
 }

@@ -7,6 +7,7 @@ import {
   Post,
   Put,
   Query,
+  Req,
   Res,
 } from '@nestjs/common';
 import {
@@ -15,9 +16,10 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import {
   ApiErrorResponses,
+  MsListener,
   ResponseCountAll,
   ResponseCreated,
   ResponseDeleted,
@@ -45,6 +47,8 @@ import { CreateChatMessageDto } from './dto/create-chat-message.dto';
 import { UpdateChatMessageDto } from './dto/update-chat-message.dto';
 import { ChatMessage } from './entities/chat-message.entity';
 import { ChatMessageService } from './chat-message.service';
+import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
+import { Job, JobResponse } from 'src/core/core.job';
 
 const entity = snakeCase(ChatMessage.name);
 
@@ -54,7 +58,21 @@ const entity = snakeCase(ChatMessage.name);
 @ApiExtraModels(ChatMessage)
 @Controller(entity)
 export class ChatMessageController {
-  constructor(private readonly chatMessageService: ChatMessageService) {}
+  constructor(
+    private readonly chatMessageService: ChatMessageService,
+    private readonly client: MsClientService,
+  ) {}
+
+  /**
+   * Queue listener for Messages
+   */
+  @MsListener('app.message')
+  async execute(job: Job): Promise<void> {
+    const response = await this.chatMessageService[job.action]<JobResponse>(
+      new Job(job),
+    );
+    await this.client.jobDone(job, response);
+  }
 
   /**
    * Create a new entity document
