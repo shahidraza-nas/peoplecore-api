@@ -35,4 +35,14 @@ export class SocketStateService {
     this.socketState.forEach((sockets) => all.push(...sockets));
     return all;
   }
+
+  public getOnlineUserIds(): number[] {
+    const userIds: number[] = [];
+    this.socketState.forEach((sockets, userId) => {
+      if (sockets.length > 0) {
+        userIds.push(Number(userId));
+      }
+    });
+    return userIds;
+  }
 }

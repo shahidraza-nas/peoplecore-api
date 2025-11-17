@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { Job } from 'src/core/core.job';
 import { RedisPropagatorService } from 'src/core/modules/socket/redis-propagator/redis-propagator.service';
+import { SocketStateService } from 'src/core/modules/socket/socket-state/socket-state.service';
 import { ChatMessage } from '../sql/chat-message/entities/chat-message.entity';
 
 @Injectable()
 export class SocketEventService {
-  constructor(private redisPropagatorService: RedisPropagatorService) {}
+  constructor(
+    private redisPropagatorService: RedisPropagatorService,
+    private socketStateService: SocketStateService,
+  ) {}
 
   /**
    * Used to receive trigger from microservice when a message has to be sent to browser client.
@@ -68,7 +72,7 @@ export class SocketEventService {
   async broadcastUserOnline(job: Job) {
     const { userId } = job.payload as { userId: number };
 
-    // Broadcast to all connected clients
+    console.log(`Broadcasting online status for USER_${userId} to all clients`);
     this.redisPropagatorService.propagateEvent({
       event: 'user.online',
       data: { userId },
@@ -85,10 +89,30 @@ export class SocketEventService {
   async broadcastUserOffline(job: Job) {
     const { userId } = job.payload as { userId: number };
 
-    // Broadcast to all connected clients
+    console.log(`Broadcasting offline status for USER_${userId} to all clients`);
     this.redisPropagatorService.propagateEvent({
       event: 'user.offline',
       data: { userId },
+    });
+
+    return { error: false };
+  }
+
+  /**
+   * Send list of currently online users to requesting client.
+   * @param {Job} job - received object contains payload, owner etc
+   * @returns {Promise<{error: boolean}>}
+   */
+  async sendOnlineUsersList(job: Job) {
+    const { requestingUserId } = job.payload as { requestingUserId: number };
+    
+    const onlineUserIds = this.socketStateService.getOnlineUserIds();
+    console.log(`Sending online users list to USER_${requestingUserId}:`, onlineUserIds);
+
+    this.redisPropagatorService.propagateEvent({
+      userId: `${requestingUserId}`,
+      event: 'onlineUsers.list',
+      data: { userIds: onlineUserIds },
     });
 
     return { error: false };

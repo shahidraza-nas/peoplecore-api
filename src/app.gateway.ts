@@ -94,9 +94,23 @@ export class AppGateway
     );
   }
 
+  @UseInterceptors(RedisPropagatorInterceptor)
+  @SubscribeMessage('getOnlineUsers')
+  async handleGetOnlineUsers(client: AuthenticatedSocket) {
+    this.logger.log(`User ${client.auth?.id} requesting online users list`);
+    await this.msClient.executeJob(
+      APPEVENTS.SOCKET,
+      new Job({
+        app: process.env.APP_ID,
+        action: 'sendOnlineUsersList',
+        owner: client.auth,
+        payload: { requestingUserId: client.auth?.id },
+      }),
+    );
+  }
+
   async handleDisconnect(client: AuthenticatedSocket) {
-    this.logger.log(`Client disconnected: USER_${client.auth?.id}`);
-    // Broadcast user offline status
+    this.logger.log(`Client disconnected: USER_${client.auth?.id}, Socket: ${client.id}`);
     if (client.auth?.id) {
       await this.msClient.executeJob(
         APPEVENTS.SOCKET,
@@ -107,11 +121,12 @@ export class AppGateway
           payload: { userId: client.auth.id },
         }),
       );
+      this.logger.log(`Broadcasted offline status for USER_${client.auth.id}`);
     }
   }
 
   async handleConnection(client: AuthenticatedSocket) {
-    this.logger.log(`Client connected: USER_${client.auth?.id}, broadcasting online status`);
+    this.logger.log(`Client connected: USER_${client.auth?.id}, Socket: ${client.id}, broadcasting online status`);
     if (client.auth?.id) {
       await this.msClient.executeJob(
         APPEVENTS.SOCKET,
@@ -122,6 +137,7 @@ export class AppGateway
           payload: { userId: client.auth.id },
         }),
       );
+      this.logger.log(`Broadcasted online status for USER_${client.auth.id}`);
     }
   }
 }
