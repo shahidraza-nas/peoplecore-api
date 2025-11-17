@@ -1,9 +1,11 @@
 import { ModelService, SearchFields, SqlService } from '@core/sql';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotAcceptableException } from '@nestjs/common';
 import * as moment from 'moment-timezone';
 import { Job, JobResponse } from 'src/core/core.job';
 import { compareHash, generateHash } from 'src/core/core.utils';
 import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
+import { APPEVENTS } from 'src/constants/events.constants';
+import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 import { User } from './entities/user.entity';
 
 @Injectable()
@@ -36,6 +38,10 @@ export class UserService extends ModelService<User> {
     });
 
     if (error) return { error };
+
+    if (!owner && data) {
+      await data.update({ created_by: data.getDataValue('id') });
+    }
 
     if (data && data.email && body.send_email !== false) {
       const user = data.toJSON ? data.toJSON() : data;
@@ -103,8 +109,7 @@ export class UserService extends ModelService<User> {
    */
   async update(job: any): Promise<JobResponse> {
     const { owner, uid, body, payload } = job;
-    
-    // If uid is provided, lookup by uid first to get internal id
+
     if (uid) {
       const { data: user, error: findError } = await this.findOne({
         owner,
@@ -118,7 +123,6 @@ export class UserService extends ModelService<User> {
         return { error: findError || 'User not found' };
       }
 
-      // Now use the internal id to update
       return await super.update({
         owner,
         action: 'update',
@@ -127,8 +131,7 @@ export class UserService extends ModelService<User> {
         payload,
       });
     }
-    
-    // Otherwise, use the standard update from parent
+
     return await super.update(job);
   }
 
@@ -140,7 +143,7 @@ export class UserService extends ModelService<User> {
   async delete(job: any): Promise<JobResponse> {
     const { owner, uid, payload } = job;
     
-    // If uid is provided, lookup by uid first to get internal id
+
     if (uid) {
       const { data: user, error: findError } = await this.findOne({
         owner,
@@ -154,7 +157,6 @@ export class UserService extends ModelService<User> {
         return { error: findError || 'User not found' };
       }
 
-      // Now use the internal id to delete
       return await super.delete({
         owner,
         action: 'delete',
@@ -162,8 +164,7 @@ export class UserService extends ModelService<User> {
         payload,
       });
     }
-    
-    // Otherwise, use the standard delete from parent
+  
     return await super.delete(job);
   }
 
@@ -203,5 +204,58 @@ export class UserService extends ModelService<User> {
     } catch (error) {
       return { error };
     }
+  }
+
+  /**
+   * Get users created by the logged-in user
+   * @param job - Job object with owner and query params
+   * @returns JobResponse with list of users created by owner
+   */
+  async getOwnedUsers(job: Job) {
+    const { owner, payload = {} } = job;
+    
+    const where = {
+      ...payload.where,
+      created_by: owner.id,
+    };
+
+    return await this.findAll({
+      owner,
+      action: 'findAll',
+      payload: {
+        ...payload,
+        where,
+      },
+    });
+  }
+
+  /**
+   * Soft delete a user from database.
+   * Invalidates all user sessions.
+   * @param {OwnerDto} owner - an object with details of logged in user
+   * @returns {Promise<{data: User, error: any}>}
+   */
+  async deleteUser(owner: OwnerDto): Promise<JobResponse> {
+    const { data: deleted, error: deletedErr } = await this.delete({
+      action: 'delete',
+      owner,
+      id: owner.id,
+    });
+
+    if (!!deleted) {
+      await this.msClient.executeJob(
+        APPEVENTS.USER,
+        new Job({
+          action: 'invalidateUserSessions',
+          app: process.env.APP_ID,
+          owner,
+          payload: {
+            userId: owner.id,
+          },
+        }),
+      );
+    }
+
+    return { data: deleted, error: deletedErr };
   }
 }

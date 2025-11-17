@@ -53,13 +53,13 @@ import { UserService } from './user.service';
 @ApiExtraModels(User)
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   /**
    * Create a new User
    */
   @Post()
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @ApiOperation({ summary: 'Create a new user' })
   @ApiConsumes('application/json', 'multipart/form-data')
   @FileUploads([{ name: 'avatar_file', required: false, bodyField: 'avatar' }])
@@ -222,6 +222,42 @@ export class UserController {
       await this.userService.findAll({
         owner,
         action: 'findAll',
+        payload: {
+          ...query,
+          where: {
+            created_by: owner.id
+          }
+        },
+      });
+
+    if (error) {
+      return ErrorResponse(res, {
+        error,
+        message: `${error.message || error}`,
+      });
+    }
+    return Result(res, {
+      data: { users: data, offset, limit, count },
+      message: 'Ok',
+    });
+  }
+
+  /**
+   * Get users created by logged-in user
+   */
+  @Get('my-users')
+  @ApiOperation({ summary: 'Get users created by me' })
+  @ResponseGetAll(User)
+  async getMyUsers(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Owner() owner: OwnerDto,
+    @Query() query: any,
+  ) {
+    const { error, data, offset, limit, count } =
+      await this.userService.getOwnedUsers({
+        owner,
+        action: 'getMyUsers',
         payload: { ...query },
       });
 
@@ -334,7 +370,7 @@ export class UserController {
    * Delete a User using uid
    */
   @Delete(':uid')
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @ApiOperation({ summary: 'Delete a user using uid' })
   @ResponseDeleted(User)
   async delete(
@@ -348,7 +384,12 @@ export class UserController {
       owner,
       action: 'delete',
       uid,
-      payload: { ...query },
+      payload: {
+        ...query,
+        where: {
+          created_by: owner.id
+        }
+      },
     });
 
     if (error) {
