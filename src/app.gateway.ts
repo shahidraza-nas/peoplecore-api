@@ -82,7 +82,7 @@ export class AppGateway
   @UseInterceptors(RedisPropagatorInterceptor)
   @SubscribeMessage('user.typing')
   async handleTypingEvent(client: AuthenticatedSocket, data: any) {
-    this.logger.log(`Typing: USER_${client.auth?.id}`);
+    this.logger.log(`Typing from USER_${client.auth?.id} to USER_${data.toUserId}, isTyping: ${data.isTyping}`);
     await this.msClient.executeJob(
       APPEVENTS.SOCKET,
       new Job({
@@ -111,8 +111,7 @@ export class AppGateway
   }
 
   async handleConnection(client: AuthenticatedSocket) {
-    this.logger.log(`Client connected: USER_${client.auth?.id}`);
-    // Broadcast user online status
+    this.logger.log(`Client connected: USER_${client.auth?.id}, broadcasting online status`);
     if (client.auth?.id) {
       await this.msClient.executeJob(
         APPEVENTS.SOCKET,
