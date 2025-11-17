@@ -59,4 +59,38 @@ export class SocketEventService {
 
     return { error: false };
   }
+
+  /**
+   * Broadcast when a user comes online.
+   * @param {Job} job - received object contains payload, owner etc
+   * @returns {Promise<{error: boolean}>}
+   */
+  async broadcastUserOnline(job: Job) {
+    const { userId } = job.payload as { userId: number };
+
+    // Broadcast to all connected clients
+    this.redisPropagatorService.propagateEvent({
+      event: 'user.online',
+      data: { userId },
+    });
+
+    return { error: false };
+  }
+
+  /**
+   * Broadcast when a user goes offline.
+   * @param {Job} job - received object contains payload, owner etc
+   * @returns {Promise<{error: boolean}>}
+   */
+  async broadcastUserOffline(job: Job) {
+    const { userId } = job.payload as { userId: number };
+
+    // Broadcast to all connected clients
+    this.redisPropagatorService.propagateEvent({
+      event: 'user.offline',
+      data: { userId },
+    });
+
+    return { error: false };
+  }
 }

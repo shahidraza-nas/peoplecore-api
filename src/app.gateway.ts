@@ -96,11 +96,33 @@ export class AppGateway
 
   async handleDisconnect(client: AuthenticatedSocket) {
     this.logger.log(`Client disconnected: USER_${client.auth?.id}`);
-    // On socket disconnect, update user status if needed
+    // Broadcast user offline status
+    if (client.auth?.id) {
+      await this.msClient.executeJob(
+        APPEVENTS.SOCKET,
+        new Job({
+          app: process.env.APP_ID,
+          action: 'broadcastUserOffline',
+          owner: client.auth,
+          payload: { userId: client.auth.id },
+        }),
+      );
+    }
   }
 
   async handleConnection(client: AuthenticatedSocket) {
     this.logger.log(`Client connected: USER_${client.auth?.id}`);
-    // On socket connect, update user status if needed
+    // Broadcast user online status
+    if (client.auth?.id) {
+      await this.msClient.executeJob(
+        APPEVENTS.SOCKET,
+        new Job({
+          app: process.env.APP_ID,
+          action: 'broadcastUserOnline',
+          owner: client.auth,
+          payload: { userId: client.auth.id },
+        }),
+      );
+    }
   }
 }
