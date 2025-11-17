@@ -170,11 +170,11 @@ export class UserController {
   }
 
   /**
-   * Update a User using id
+   * Update a User using uid
    */
-  @Put(':id')
+  @Put(':uid')
   @Roles(Role.Admin)
-  @ApiOperation({ summary: 'Update a user using id' })
+  @ApiOperation({ summary: 'Update a user using uid' })
   @ApiConsumes('application/json', 'multipart/form-data')
   @FileUploads([{ name: 'avatar_file', required: false, bodyField: 'avatar' }])
   @ResponseUpdated(User)
@@ -182,14 +182,14 @@ export class UserController {
     @Req() req: Request,
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Param('id') id: number,
+    @Param('uid') uid: string,
     @Body() updateUserDto: UpdateUserDto,
     @Query() query: ApiQueryUpdate,
   ) {
     const { error, data } = await this.userService.update({
       owner,
       action: 'update',
-      id: +id,
+      uid,
       body: updateUserDto,
       payload: { ...query },
     });
@@ -299,22 +299,22 @@ export class UserController {
   }
 
   /**
-   * Get a User by id
+   * Get a User by uid
    */
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a user using id' })
+  @Get(':uid')
+  @ApiOperation({ summary: 'Get a user using uid' })
   @ResponseGetOne(User)
   async findById(
     @Req() req: Request,
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Param('id') id: number,
+    @Param('uid') uid: string,
     @Query() query: any,
   ) {
     const { error, data } = await this.userService.findById({
       owner,
       action: 'findById',
-      id: +id,
+      uid,
       payload: { ...query },
     });
 
@@ -331,23 +331,23 @@ export class UserController {
   }
 
   /**
-   * Delete a User using id
+   * Delete a User using uid
    */
-  @Delete(':id')
+  @Delete(':uid')
   @Roles(Role.Admin)
-  @ApiOperation({ summary: 'Delete a user using id' })
+  @ApiOperation({ summary: 'Delete a user using uid' })
   @ResponseDeleted(User)
   async delete(
     @Req() req: Request,
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Param('id') id: number,
+    @Param('uid') uid: string,
     @Query() query: any,
   ) {
     const { error, data } = await this.userService.delete({
       owner,
       action: 'delete',
-      id: +id,
+      uid,
       payload: { ...query },
     });
 

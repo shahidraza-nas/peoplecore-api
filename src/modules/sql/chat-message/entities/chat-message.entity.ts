@@ -6,7 +6,6 @@ import {
   Column,
   DataType,
   ForeignKey,
-  Index,
   Table,
 } from 'sequelize-typescript';
 import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
@@ -17,25 +16,14 @@ import { MessageType } from '../enums/message-type.enum';
 
 @Table
 export class ChatMessage extends SqlModel {
-  @Column({ unique: 'uid' })
+  @Column({ unique: true })
   @ApiProperty({
     description: 'Unique ID',
     example: 'msg_a926d382-6741-4d95-86cf-1f5c421cf654',
     readOnly: true,
   })
   @IsString()
-  @Index('message_uid')
   declare uid: string;
-
-  @Column
-  @ApiProperty({
-    description: 'reaction',
-    example: '**',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  declare reaction?: string;
 
   @Column({ allowNull: true, defaultValue: false })
   @ApiProperty({ description: 'Is message read', example: false })
@@ -50,19 +38,19 @@ export class ChatMessage extends SqlModel {
   @IsOptional()
   declare message: string;
 
-  @Column({
-    type: DataType.ENUM(...Object.values(MessageType)),
-    allowNull: false,
-    defaultValue: MessageType.USER,
-  })
-  @ApiProperty({
-    enum: MessageType,
-    description: 'Message type',
-    example: MessageType.USER,
-  })
-  @IsOptional()
-  @IsEnum(MessageType)
-  declare type: MessageType;
+  // TODO: Add type column to database first
+  // @Column({
+  //   type: DataType.ENUM(...Object.values(MessageType)),
+  //   defaultValue: MessageType.USER,
+  // })
+  // @ApiProperty({
+  //   enum: MessageType,
+  //   description: 'Message Type',
+  //   example: MessageType.USER,
+  // })
+  // @IsEnum(MessageType)
+  // @IsOptional()
+  // declare type: MessageType;
 
   @Column({ allowNull: false })
   @ApiProperty({ description: 'From User ID', example: 1 })

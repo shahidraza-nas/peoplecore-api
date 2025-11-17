@@ -1,4 +1,4 @@
 export enum MessageType {
-  SYSTEM = 'system.message',
-  USER = 'user.message',
+  USER = 'user',
+  SYSTEM = 'system',
 }

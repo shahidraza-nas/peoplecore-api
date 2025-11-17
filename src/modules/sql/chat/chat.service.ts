@@ -4,12 +4,13 @@ import { Chat } from './entities/chat.entity';
 import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 import { GetChatsQueryDto } from './dto/get-chats-query.dto';
 import { GetMessagesQueryDto } from './dto/get-messages-query.dto';
+import { SendMessageDto } from './dto/send-message.dto';
 import { Op, Sequelize } from 'sequelize';
 import { UserService } from '../user/user.service';
 import { ChatMessageService } from '../chat-message/chat-message.service';
-import { MessageType } from '../chat-message/enums/message-type.enum';
-import { MsClientService } from 'src/core/modules/ms-client/ms-client.module';
+import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
 import { Job } from 'src/core/core.job';
+import { APPEVENTS } from 'src/constants/events.constants';
 
 @Injectable()
 export class ChatService extends ModelService<Chat> {
@@ -31,6 +32,75 @@ export class ChatService extends ModelService<Chat> {
   }
 
   /**
+   * Find or create a chat between two users
+   */
+  public async findOrCreateChat(owner: OwnerDto, userUid: string) {
+    const { data: toUser, error: userError } = await this.userService.findOne({
+      action: 'findToUser',
+      owner,
+      payload: {
+        where: { uid: userUid },
+      },
+    });
+
+    if (userError || !toUser) {
+      throw new NotFoundException('User not found!');
+    }
+
+    const toUserId = toUser.getDataValue('id');
+
+    // Prevent users from chatting with themselves
+    if (owner.id === toUserId) {
+      throw new Error('Cannot create a chat with yourself');
+    }
+
+    let chat = await this.$db.findOneRecord({
+      options: {
+        where: {
+          [Op.or]: [
+            { user1Id: owner.id, user2Id: toUserId },
+            { user1Id: toUserId, user2Id: owner.id },
+          ],
+        },
+        include: [
+          {
+            association: 'user1',
+            attributes: ['id', 'uid', 'name', 'email', 'avatar'],
+            required: false,
+          },
+          {
+            association: 'user2',
+            attributes: ['id', 'uid', 'name', 'email', 'avatar'],
+            required: false,
+          },
+        ],
+      },
+    });
+
+    if (chat.data) {
+      return { error: false, data: chat.data };
+    }
+
+    const { data: newChat, error: chatError } = await this.create({
+      action: 'create-chat',
+      owner,
+      payload: {
+        populate: ['user1', 'user2'],
+      },
+      body: {
+        user1Id: owner.id,
+        user2Id: toUserId,
+      },
+    });
+
+    if (chatError || !newChat) {
+      throw new Error('Failed to create chat');
+    }
+
+    return { error: false, data: newChat };
+  }
+
+  /**
    * Get user's chat list with last message preview
    */
   public async getMyChats(owner: OwnerDto, query: GetChatsQueryDto) {
@@ -41,10 +111,9 @@ export class ChatService extends ModelService<Chat> {
         pagination: true,
         offset: query.offset,
         limit: query.limit,
-        attributes: ['id', 'uid', 'user1Id', 'user2Id', 'active', 'created_at', 'updated_at'],
+        attributes: ['id', 'uid', 'user1Id', 'user2Id', 'created_at', 'updated_at'],
         order: [[Sequelize.literal('id'), 'DESC']],
         where: {
-          active: true,
           [Op.or]: [
             { user1Id: { [Op.eq]: owner.id } },
             { user2Id: { [Op.eq]: owner.id } },
@@ -54,19 +123,16 @@ export class ChatService extends ModelService<Chat> {
           {
             association: 'user1',
             attributes: ['id', 'uid', 'name', 'email', 'avatar'],
-            where: { active: true },
             required: false,
           },
           {
             association: 'user2',
             attributes: ['id', 'uid', 'name', 'email', 'avatar'],
-            where: { active: true },
             required: false,
           },
           {
             association: 'messages',
-            attributes: ['uid', 'message', 'created_at', 'isRead', 'type', 'fromUserId'],
-            where: { active: true },
+            attributes: ['uid', 'message', 'created_at', 'isRead', 'fromUserId'],
             limit: 1,
             order: [['created_at', 'DESC']],
             required: false,
@@ -112,31 +178,27 @@ export class ChatService extends ModelService<Chat> {
         offset: query.offset,
         limit: query.limit,
         attributes: [
+          'id',
           'uid',
-          'active',
           'message',
           'isRead',
-          'type',
-          'reaction',
+          'fromUserId',
+          'toUserId',
           'created_at',
         ],
         order: [[Sequelize.literal('id'), 'DESC']],
         where: {
-          active: true,
-          chatId: chat.getDataValue('id'),
-          type: MessageType.USER,
+          chatId: chat.getDataValue('id')
         },
         include: [
           {
             association: 'fromUser',
             attributes: ['name', 'uid', 'id', 'avatar'],
-            where: { active: true },
             required: false,
           },
           {
             association: 'toUser',
             attributes: ['name', 'uid', 'id', 'avatar'],
-            where: { active: true },
             required: false,
           },
         ],
@@ -144,6 +206,113 @@ export class ChatService extends ModelService<Chat> {
     });
 
     return messages;
+  }
+
+  /**
+   * Send a message in a chat
+   */
+  public async sendMessage(owner: OwnerDto, dto: SendMessageDto) {
+    const { data: toUser, error: userError } = await this.userService.findOne({
+      action: 'findToUser',
+      owner,
+      payload: {
+        where: { uid: dto.toUserUid },
+      },
+    });
+
+    if (userError || !toUser) {
+      throw new NotFoundException('Recipient user not found!');
+    }
+
+    const toUserId = toUser.getDataValue('id');
+
+    // Find or create chat between users
+    let chat = await this.$db.findOneRecord({
+      options: {
+        where: {
+          [Op.or]: [
+            { user1Id: owner.id, user2Id: toUserId },
+            { user1Id: toUserId, user2Id: owner.id },
+          ],
+        },
+      },
+    });
+
+    if (!chat.data) {
+      // Create new chat
+      const { data: newChat, error: chatError } = await this.create({
+        action: 'create-chat',
+        owner,
+        body: {
+          user1Id: owner.id,
+          user2Id: toUserId,
+        },
+      });
+
+      if (chatError || !newChat) {
+        throw new Error('Failed to create chat');
+      }
+
+      chat.data = newChat;
+    }
+
+    const chatId = chat.data.getDataValue('id');
+    const chatUid = chat.data.getDataValue('uid');
+
+    // Create message
+    const { data: message, error: messageError } = await this.messageService.create({
+      action: 'create-message',
+      owner,
+      payload: {
+        populate: ['fromUser', 'toUser', 'chat'],
+      },
+      body: {
+        chatId,
+        fromUserId: owner.id,
+        toUserId,
+        message: dto.message,
+        isRead: false,
+      },
+    });
+
+    if (messageError || !message) {
+      throw new Error('Failed to send message');
+    }
+
+    await this.msClient.executeJob(
+      APPEVENTS.SOCKET,
+      new Job({
+        app: process.env.APP_ID,
+        action: 'sendMessage',
+        owner,
+        payload: {
+          ...message.toJSON(),
+          chatUid,
+        },
+      }),
+    );
+
+    await this.msClient.executeJob(
+      APPEVENTS.NOTIFICATION,
+      new Job({
+        app: process.env.APP_ID,
+        action: 'sendPushNotification',
+        owner,
+        payload: {
+          toUserId,
+          title: `New message from ${owner.name || 'User'}`,
+          body: dto.message.substring(0, 100),
+          type: 'chat_message',
+          data: {
+            chatUid,
+            messageUid: message.getDataValue('uid'),
+            fromUserId: owner.id,
+          },
+        },
+      }),
+    );
+
+    return { error: false, data: message };
   }
 
   /**

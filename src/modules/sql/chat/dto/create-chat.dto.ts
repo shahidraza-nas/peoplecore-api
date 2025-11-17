@@ -1,4 +1,12 @@
-import { OmitType } from '@nestjs/swagger';
-import { Chat } from '../entities/chat.entity';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty } from 'class-validator';
 
-export class CreateChatDto extends OmitType(Chat, ['active'] as const) {}
+export class CreateChatDto {
+  @ApiProperty({
+    description: 'UID of the user to chat with',
+    example: 'user_123456',
+  })
+  @IsString()
+  @IsNotEmpty()
+  userUid: string;
+}

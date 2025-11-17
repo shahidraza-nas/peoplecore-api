@@ -9,7 +9,6 @@ import { ChatService } from '../chat/chat.service';
 import { CreateReactionDto } from './dto/create-reaction.dto';
 import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 import { Op } from 'sequelize';
-import { MessageType } from './enums/message-type.enum';
 import { Role } from '../user/role.enum';
 
 @Injectable()
@@ -76,7 +75,6 @@ export class ChatMessageService extends ModelService<ChatMessage> {
           toUser,
           chatDetails,
           message: data.message,
-          type: data.type || MessageType.USER,
         },
       }),
     );
@@ -88,11 +86,10 @@ export class ChatMessageService extends ModelService<ChatMessage> {
   async saveMessage(job: Job) {
     try {
       const { owner, payload } = job;
-      const { chatDetails, toUser, message, type } = payload as {
+      const { chatDetails, toUser, message } = payload as {
         toUser: any;
         chatDetails: any;
         message: string;
-        type: MessageType;
       };
 
       const { data: createMessageDetails, error } = await this.create({
@@ -105,8 +102,7 @@ export class ChatMessageService extends ModelService<ChatMessage> {
           fromUserId: owner.id,
           toUserId: toUser.id,
           message,
-          chatId: chatDetails.id,
-          type: type || MessageType.USER,
+          chatId: chatDetails.id
         },
       });
 
@@ -133,7 +129,6 @@ export class ChatMessageService extends ModelService<ChatMessage> {
           where: {
             active: true,
             id: createMessageDetails.getDataValue('id'),
-            type: MessageType.USER,
           },
           include: [
             {
@@ -222,8 +217,7 @@ export class ChatMessageService extends ModelService<ChatMessage> {
           ],
           where: {
             active: true,
-            id: message.getDataValue('id'),
-            type: MessageType.USER,
+            id: message.getDataValue('id')
           },
           include: [
             {

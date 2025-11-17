@@ -5,6 +5,8 @@ import settingSeed from './setting.seed';
 import stateSeed from './state.seed';
 import templateSeed from './template.seed';
 import userSeed from './user.seed';
+import chatSeed from './chat.seed';
+import chatMessageSeed from './chat-message.seed';
 
 const seeds: Seed<any>[] = [
   userSeed,
@@ -13,6 +15,8 @@ const seeds: Seed<any>[] = [
   countrySeed,
   stateSeed,
   templateSeed,
+  chatSeed,
+  chatMessageSeed,
 ];
 
 export default seeds;

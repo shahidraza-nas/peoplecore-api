@@ -15,13 +15,12 @@ import { ChatMessage } from '../../chat-message/entities/chat-message.entity';
 
 @Table
 export class Chat extends SqlModel {
-  @Column({ unique: 'uid' })
+  @Column({ unique: true })
   @ApiProperty({
     description: 'Unique ID',
     example: 'chat_a926d382-6741-4d95-86cf-1f5c421cf654',
     readOnly: true,
   })
-  @Index('chat_uid')
   declare uid: string;
 
   @ForeignKey(() => User)

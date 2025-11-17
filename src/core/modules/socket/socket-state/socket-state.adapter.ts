@@ -34,7 +34,6 @@ export class SocketStateAdapter extends IoAdapter implements WebSocketAdapter {
     this.socketServer = super.createIOServer(port, options);
     this.redisPropagatorService.injectSocketServer(this.socketServer);
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.socketServer.use(async (socket: AuthenticatedSocket, next) => {
       const token =
         (Array.isArray(socket.handshake.query.token)
@@ -43,7 +42,6 @@ export class SocketStateAdapter extends IoAdapter implements WebSocketAdapter {
         socket.handshake.headers.authorization;
 
       if (!token) {
-        // guest login
         socket.auth = null;
         return next();
       }
@@ -51,21 +49,25 @@ export class SocketStateAdapter extends IoAdapter implements WebSocketAdapter {
         const { error: validateError, data: session } =
           this.session.verifyToken(token);
         if (validateError) {
+          this.logger.warn(`Token validation failed: ${validateError.message}`);
           socket.disconnect();
-          return next(validateError);
+          return next(new Error(`Authentication failed: ${validateError.message}`));
         }
         const { error, data } = await this.userService.$db.findOneRecord({
           options: { where: { id: session.userId }, allowEmpty: true },
         });
         if (error || !data || !data.getDataValue('active')) {
+          this.logger.warn(`User not found or inactive for session: ${session.userId}`);
           socket.disconnect();
-          return next(validateError);
+          return next(new Error('User not found or inactive'));
         }
         socket.auth = { ...data.toJSON(), ...session };
         await socket.join(`ROLE_${data.getDataValue('role')}`);
         return next();
       } catch (e) {
-        return next(e);
+        this.logger.error(`Socket authentication error: ${e.message}`);
+        socket.disconnect();
+        return next(new Error(`Authentication error: ${e.message}`));
       }
     });
     return this.socketServer;

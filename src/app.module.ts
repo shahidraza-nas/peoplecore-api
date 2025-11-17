@@ -11,6 +11,7 @@ import { CommonModule } from './modules/common.module';
 import { FirebaseModule } from '@core/firebase';
 import { GeocoderModule } from '@core/geocoder';
 import { TwilioModule } from '@core/twilio';
+import { SocketEventModule } from './modules/socket-event/socket-event.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { TwilioModule } from '@core/twilio';
     FirebaseModule,
     GeocoderModule,
     TwilioModule,
+    SocketEventModule,
   ],
   controllers: [AppController],
   providers: [AppService, AppGateway],

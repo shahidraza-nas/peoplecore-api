@@ -56,6 +56,13 @@ export type CoreClsStore = ClsStore;
       useFactory: (config: ConfigService) => config.get('throttler'),
     }),
   ],
-  exports: [ConfigModule, ServeStaticModule, ThrottlerModule],
+  exports: [
+    ConfigModule,
+    ServeStaticModule,
+    ThrottlerModule,
+    MsClientModule,
+    SessionModule,
+    SocketModule,
+  ],
 })
 export class CoreModule {}

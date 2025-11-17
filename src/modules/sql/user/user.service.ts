@@ -67,6 +67,106 @@ export class UserService extends ModelService<User> {
     return { error, data };
   }
 
+  /**
+   * Override findById to accept uid parameter and resolve to internal id
+   * @param job - Job object with uid and query params
+   * @returns JobResponse with user data or error
+   */
+  async findById(job: any): Promise<JobResponse> {
+    const { owner, uid, payload } = job;
+    if (uid) {
+      const { data: user, error: findError } = await this.findOne({
+        owner,
+        action: 'findOne',
+        payload: {
+          where: { uid },
+        },
+      });
+
+      if (findError || !user) {
+        return { error: findError || 'User not found' };
+      }
+      return await super.findById({
+        owner,
+        action: 'findById',
+        id: user.getDataValue('id'),
+        payload,
+      });
+    }
+    return await super.findById(job);
+  }
+
+  /**
+   * Override update to accept uid parameter and resolve to internal id
+   * @param job - Job object with uid and update data
+   * @returns JobResponse with updated user data or error
+   */
+  async update(job: any): Promise<JobResponse> {
+    const { owner, uid, body, payload } = job;
+    
+    // If uid is provided, lookup by uid first to get internal id
+    if (uid) {
+      const { data: user, error: findError } = await this.findOne({
+        owner,
+        action: 'findOne',
+        payload: {
+          where: { uid },
+        },
+      });
+
+      if (findError || !user) {
+        return { error: findError || 'User not found' };
+      }
+
+      // Now use the internal id to update
+      return await super.update({
+        owner,
+        action: 'update',
+        id: user.getDataValue('id'),
+        body,
+        payload,
+      });
+    }
+    
+    // Otherwise, use the standard update from parent
+    return await super.update(job);
+  }
+
+  /**
+   * Override delete to accept uid parameter and resolve to internal id
+   * @param job - Job object with uid
+   * @returns JobResponse with deleted user data or error
+   */
+  async delete(job: any): Promise<JobResponse> {
+    const { owner, uid, payload } = job;
+    
+    // If uid is provided, lookup by uid first to get internal id
+    if (uid) {
+      const { data: user, error: findError } = await this.findOne({
+        owner,
+        action: 'findOne',
+        payload: {
+          where: { uid },
+        },
+      });
+
+      if (findError || !user) {
+        return { error: findError || 'User not found' };
+      }
+
+      // Now use the internal id to delete
+      return await super.delete({
+        owner,
+        action: 'delete',
+        id: user.getDataValue('id'),
+        payload,
+      });
+    }
+    
+    // Otherwise, use the standard delete from parent
+    return await super.delete(job);
+  }
+
   async changePassword(job: Job): Promise<JobResponse> {
     const { owner, payload } = job;
     if (!(await compareHash(payload.old_password, owner.password))) {
