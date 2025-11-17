@@ -48,8 +48,6 @@ export class ChatService extends ModelService<Chat> {
     }
 
     const toUserId = toUser.getDataValue('id');
-
-    // Prevent users from chatting with themselves
     if (owner.id === toUserId) {
       throw new Error('Cannot create a chat with yourself');
     }
@@ -333,6 +331,7 @@ export class ChatService extends ModelService<Chat> {
             { user2Id: { [Op.eq]: owner.id } },
           ],
         },
+        populate: ['user1', 'user2'],
       },
     });
 
@@ -351,5 +350,23 @@ export class ChatService extends ModelService<Chat> {
         isRead: true,
       },
     });
+
+    const otherUserId = chat.getDataValue('user1Id') === owner.id 
+      ? chat.getDataValue('user2Id') 
+      : chat.getDataValue('user1Id');
+
+    await this.msClient.executeJob(
+      APPEVENTS.SOCKET,
+      new Job({
+        app: process.env.APP_ID,
+        action: 'sendMessagesRead',
+        owner,
+        payload: {
+          chatUid,
+          fromUserId: owner.id,
+          toUserId: otherUserId,
+        },
+      }),
+    );
   }
 }

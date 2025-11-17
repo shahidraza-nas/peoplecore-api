@@ -117,4 +117,25 @@ export class SocketEventService {
 
     return { error: false };
   }
+
+  /**
+   * Broadcast when messages are marked as read.
+   * @param {Job} job - received object contains payload, owner etc
+   * @returns {Promise<{error: boolean}>}
+   */
+  async sendMessagesRead(job: Job) {
+    const { chatUid, fromUserId, toUserId } = job.payload as {
+      chatUid: string;
+      fromUserId: number;
+      toUserId: number;
+    };
+
+    this.redisPropagatorService.propagateEvent({
+      userId: `${toUserId}`,
+      event: 'messages.read',
+      data: { chatUid, readBy: fromUserId },
+    });
+
+    return { error: false };
+  }
 }
