@@ -233,9 +233,12 @@ export class UserController {
           select,
           where: {
             ...where,
-            created_by: owner.id,
+            ...(owner.role !== Role.Admin && { created_by: owner.id }),
             role: {
               $ne: Role.Admin
+            },
+            id: {
+              $ne: owner.id
             }
           },
           populate,
