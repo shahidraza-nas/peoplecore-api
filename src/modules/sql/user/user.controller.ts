@@ -233,7 +233,10 @@ export class UserController {
           select,
           where: {
             ...where,
-            created_by: owner.id
+            created_by: owner.id,
+            role: {
+              $ne: Role.Admin
+            }
           },
           populate,
           scope,
