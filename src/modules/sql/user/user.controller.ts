@@ -260,6 +260,52 @@ export class UserController {
   }
 
   /**
+   * Get dashboard statistics
+   */
+  @Get('dashboard-stats')
+  @ApiOperation({ summary: 'Get dashboard statistics' })
+  @ApiOkResponse({
+    description: 'Dashboard statistics',
+    schema: {
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            totalUsers: { type: 'number', example: 50 },
+            activeUsers: { type: 'number', example: 25 },
+            adminUsers: { type: 'number', example: 3 },
+            regularUsers: { type: 'number', example: 47 },
+            totalChats: { type: 'number', example: 15 },
+            recentUsers: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/User' },
+            },
+          },
+        },
+        message: { type: 'string', example: 'Ok' },
+      },
+    },
+  })
+  async getDashboardStats(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Owner() owner: OwnerDto,
+  ) {
+    const { error, data } = await this.userService.getDashboardStats({
+      owner,
+      action: 'getDashboardStats',
+    });
+
+    if (error) {
+      return ErrorResponse(res, {
+        error,
+        message: `${error.message || error}`,
+      });
+    }
+    return Result(res, { data, message: 'Ok' });
+  }
+
+  /**
    * Get users created by logged-in user
    */
   @Get('my-users')

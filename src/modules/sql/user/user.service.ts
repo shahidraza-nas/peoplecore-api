@@ -7,6 +7,7 @@ import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
 import { APPEVENTS } from 'src/constants/events.constants';
 import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 import { User } from './entities/user.entity';
+import { Role } from './role.enum';
 
 @Injectable()
 export class UserService extends ModelService<User> {
@@ -142,7 +143,7 @@ export class UserService extends ModelService<User> {
    */
   async delete(job: any): Promise<JobResponse> {
     const { owner, uid, payload } = job;
-    
+
 
     if (uid) {
       const { data: user, error: findError } = await this.findOne({
@@ -164,7 +165,7 @@ export class UserService extends ModelService<User> {
         payload,
       });
     }
-  
+
     return await super.delete(job);
   }
 
@@ -207,13 +208,117 @@ export class UserService extends ModelService<User> {
   }
 
   /**
+   * Get dashboard statistics
+   * @param job - Job object with owner
+   * @returns JobResponse with dashboard statistics
+   */
+  async getDashboardStats(job: Job): Promise<JobResponse> {
+    const { owner } = job;
+
+    try {
+      // total users count (excluding admin and self)
+      const { count: totalUsers } = await this.getCount({
+        owner,
+        action: 'getCount',
+        payload: {
+          where: {
+            ...(owner.role !== Role.Admin && { created_by: owner.id }),
+            role: { $ne: Role.Admin },
+            id: { $ne: owner.id },
+          },
+        },
+      });
+
+      // active users (users with recent login)
+      const { count: activeUsers } = await this.getCount({
+        owner,
+        action: 'getCount',
+        payload: {
+          where: {
+            ...(owner.role !== Role.Admin && { created_by: owner.id }),
+            role: { $ne: Role.Admin },
+            id: { $ne: owner.id },
+            last_login_at: { $ne: null },
+          },
+        },
+      });
+
+      // admin users count
+      const { count: adminUsers } = await this.getCount({
+        owner,
+        action: 'getCount',
+        payload: {
+          where: {
+            role: Role.Admin,
+          },
+        },
+      });
+
+      // Get regular users count
+      const { count: regularUsers } = await this.getCount({
+        owner,
+        action: 'getCount',
+        payload: {
+          where: {
+            ...(owner.role !== Role.Admin && { created_by: owner.id }),
+            role: Role.User,
+            id: { $ne: owner.id },
+          },
+        },
+      });
+
+      // recent users (last 5)
+      const { data: recentUsers } = await this.findAll({
+        owner,
+        action: 'findAll',
+        payload: {
+          offset: 0,
+          limit: 5,
+          where: {
+            ...(owner.role !== Role.Admin && { created_by: owner.id }),
+            role: { $ne: Role.Admin },
+            id: { $ne: owner.id },
+          },
+          sort: [['created_at', 'desc']],
+        },
+      });
+      let totalChats = 0;
+      try {
+        const { Chat } = await import('../chat/entities/chat.entity');
+        totalChats = await Chat.count({
+          where: {
+            $or: [
+              { user1Id: owner.id },
+              { user2Id: owner.id },
+            ],
+          },
+        });
+      } catch (e) {
+      }
+
+      return {
+        data: {
+          totalUsers: totalUsers || 0,
+          activeUsers: activeUsers || 0,
+          adminUsers: adminUsers || 0,
+          regularUsers: regularUsers || 0,
+          totalChats: totalChats || 0,
+          recentUsers: recentUsers || [],
+        },
+      };
+    } catch (error) {
+      return { error };
+    }
+  }
+
+  /**
    * Get users created by the logged-in user
    * @param job - Job object with owner and query params
    * @returns JobResponse with list of users created by owner
    */
   async getOwnedUsers(job: Job) {
     const { owner, payload = {} } = job;
-    
+
     const where = {
       ...payload.where,
       created_by: owner.id,
