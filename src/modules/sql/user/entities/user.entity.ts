@@ -102,9 +102,16 @@ export class User extends SqlModel {
   @IsOptional()
   @IsString()
   get avatar(): string {
-    return this.getDataValue('avatar')
-      ? config().cdnURL + this.getDataValue('avatar')
-      : null;
+    const avatarValue = this.getDataValue('avatar');
+    if (!avatarValue) return null;
+    
+    // If already a full URL (http:// or https://), return as-is
+    if (avatarValue.startsWith('http://') || avatarValue.startsWith('https://')) {
+      return avatarValue;
+    }
+    
+    // Otherwise, prepend CDN URL for local files
+    return config().cdnURL + avatarValue;
   }
 
   @Column({ defaultValue: false })

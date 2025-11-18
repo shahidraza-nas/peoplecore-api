@@ -60,4 +60,9 @@ export class RegisterDto {
   @IsBoolean()
   @IsOptional()
   send_push?: boolean;
+
+  @ApiProperty({ description: 'Avatar URL', example: 'https://example.com/avatar.jpg', required: false })
+  @IsOptional()
+  @IsString()
+  avatar?: string;
 }

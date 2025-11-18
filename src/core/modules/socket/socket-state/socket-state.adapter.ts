@@ -50,7 +50,6 @@ export class SocketStateAdapter extends IoAdapter implements WebSocketAdapter {
           this.session.verifyToken(token);
         if (validateError) {
           this.logger.warn(`Token validation failed: ${validateError.message}`);
-          socket.disconnect();
           return next(new Error(`Authentication failed: ${validateError.message}`));
         }
         const { error, data } = await this.userService.$db.findOneRecord({
@@ -58,7 +57,6 @@ export class SocketStateAdapter extends IoAdapter implements WebSocketAdapter {
         });
         if (error || !data || !data.getDataValue('active')) {
           this.logger.warn(`User not found or inactive for session: ${session.userId}`);
-          socket.disconnect();
           return next(new Error('User not found or inactive'));
         }
         socket.auth = { ...data.toJSON(), ...session };
@@ -66,7 +64,6 @@ export class SocketStateAdapter extends IoAdapter implements WebSocketAdapter {
         return next();
       } catch (e) {
         this.logger.error(`Socket authentication error: ${e.message}`);
-        socket.disconnect();
         return next(new Error(`Authentication error: ${e.message}`));
       }
     });

@@ -39,7 +39,7 @@ import {
 import { OwnerIncludeAttribute } from 'src/core/decorators/sql/owner-attributes.decorator';
 import { Owner, OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 import { Roles } from 'src/core/decorators/sql/roles.decorator';
-import { ApiQueryCreate, ApiQueryUpdate } from 'src/core/dto/query.dto';
+import { ApiQueryCreate, ApiQueryDelete, ApiQueryGetAll, ApiQueryGetById, ApiQueryGetOne, ApiQueryUpdate } from 'src/core/dto/query.dto';
 import { Role } from '../user/role.enum';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -71,11 +71,12 @@ export class UserController {
     @Body() createUserDto: CreateUserDto,
     @Query() query: ApiQueryCreate,
   ) {
+    const { populate } = query;
     const { error, data } = await this.userService.create({
       owner,
       action: 'create',
       body: createUserDto,
-      payload: { ...query },
+      payload: { populate },
     });
 
     if (error) {
@@ -105,12 +106,13 @@ export class UserController {
     @Body() updateUserDto: UpdateUserDto,
     @Query() query: ApiQueryUpdate,
   ) {
+    const { populate } = query;
     const { error, data } = await this.userService.update({
       owner,
       action: 'update',
       id: owner.id,
       body: updateUserDto,
-      payload: { ...query },
+      payload: { populate },
     });
 
     if (error) {
@@ -186,12 +188,13 @@ export class UserController {
     @Body() updateUserDto: UpdateUserDto,
     @Query() query: ApiQueryUpdate,
   ) {
+    const { populate } = query;
     const { error, data } = await this.userService.update({
       owner,
       action: 'update',
       uid,
       body: updateUserDto,
-      payload: { ...query },
+      payload: { populate },
     });
 
     if (error) {
@@ -216,17 +219,25 @@ export class UserController {
     @Req() req: Request,
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Query() query: any,
+    @Query() query: ApiQueryGetAll,
   ) {
-    const { error, data, offset, limit, count } =
+    const { offset, limit, search, select, where, populate, scope, sort } = query;
+    const { error, data, offset: resOffset, limit: resLimit, count } =
       await this.userService.findAll({
         owner,
         action: 'findAll',
         payload: {
-          ...query,
+          offset,
+          limit,
+          search,
+          select,
           where: {
+            ...where,
             created_by: owner.id
-          }
+          },
+          populate,
+          scope,
+          sort
         },
       });
 
@@ -237,7 +248,7 @@ export class UserController {
       });
     }
     return Result(res, {
-      data: { users: data, offset, limit, count },
+      data: { users: data, offset: resOffset, limit: resLimit, count },
       message: 'Ok',
     });
   }
@@ -252,13 +263,14 @@ export class UserController {
     @Req() req: Request,
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Query() query: any,
+    @Query() query: ApiQueryGetAll,
   ) {
-    const { error, data, offset, limit, count } =
+    const { offset, limit, search, select, where, populate, scope, sort } = query;
+    const { error, data, offset: resOffset, limit: resLimit, count } =
       await this.userService.getOwnedUsers({
         owner,
         action: 'getMyUsers',
-        payload: { ...query },
+        payload: { offset, limit, search, select, where, populate, scope, sort },
       });
 
     if (error) {
@@ -268,7 +280,7 @@ export class UserController {
       });
     }
     return Result(res, {
-      data: { users: data, offset, limit, count },
+      data: { users: data, offset: resOffset, limit: resLimit, count },
       message: 'Ok',
     });
   }
@@ -283,12 +295,13 @@ export class UserController {
     @Req() req: Request,
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Query() query: any,
+    @Query() query: ApiQueryGetOne,
   ) {
+    const { offset, search, select, where, populate, scope, sort } = query;
     const { error, data } = await this.userService.findOne({
       owner,
       action: 'findOne',
-      payload: { ...query }, // need to destructure it!!!
+      payload: { offset, search, select, where, populate, scope, sort },
     });
 
     if (error) {
@@ -313,13 +326,14 @@ export class UserController {
     @Req() req: Request,
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Query() query: any,
+    @Query() query: ApiQueryGetById,
   ) {
+    const { select, populate, scope } = query;
     const { error, data } = await this.userService.findById({
       owner,
       action: 'findById',
       id: owner.id,
-      payload: { ...query }, // need to destructure it!!!
+      payload: { select, populate, scope },
     });
 
     if (error) {
@@ -345,13 +359,14 @@ export class UserController {
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Param('uid') uid: string,
-    @Query() query: any,
+    @Query() query: ApiQueryGetById,
   ) {
+    const { select, populate, scope } = query;
     const { error, data } = await this.userService.findById({
       owner,
       action: 'findById',
       uid,
-      payload: { ...query }, // need to destructure it!!!
+      payload: { select, populate, scope },
     });
 
     if (error) {
@@ -378,14 +393,15 @@ export class UserController {
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Param('uid') uid: string,
-    @Query() query: any,
+    @Query() query: ApiQueryDelete,
   ) {
+    const { mode } = query;
     const { error, data } = await this.userService.delete({
       owner,
       action: 'delete',
       uid,
       payload: {
-        ...query, // need to destructure it!!!
+        mode,
         where: {
           created_by: owner.id
         }
