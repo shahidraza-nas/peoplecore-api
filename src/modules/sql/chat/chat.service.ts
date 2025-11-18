@@ -317,56 +317,64 @@ export class ChatService extends ModelService<Chat> {
    * Mark all messages in a chat as read
    */
   public async readAllMessages(job: Job) {
-    const { owner, payload } = job;
-    const { chatUid } = payload;
+    try {
+      const { owner, payload } = job;
+      const { chatUid } = payload;
 
-    const { data: chat } = await this.findOne({
-      action: 'findOne',
-      owner,
-      payload: {
-        where: {
-          uid: chatUid,
-          [Op.or]: [
-            { user1Id: { [Op.eq]: owner.id } },
-            { user2Id: { [Op.eq]: owner.id } },
-          ],
-        },
-        populate: ['user1', 'user2'],
-      },
-    });
-
-    if (!chat) throw new NotFoundException('Chat not found!');
-
-    await this.messageService.$db.updateBulkRecords({
-      owner,
-      options: {
-        where: {
-          chatId: chat.getDataValue('id'),
-          toUserId: owner.id,
-          isRead: false,
-        },
-      },
-      body: {
-        isRead: true,
-      },
-    });
-
-    const otherUserId = chat.getDataValue('user1Id') === owner.id 
-      ? chat.getDataValue('user2Id') 
-      : chat.getDataValue('user1Id');
-
-    await this.msClient.executeJob(
-      APPEVENTS.SOCKET,
-      new Job({
-        app: process.env.APP_ID,
-        action: 'sendMessagesRead',
+      const { data: chat } = await this.findOne({
+        action: 'findOne',
         owner,
         payload: {
-          chatUid,
-          fromUserId: owner.id,
-          toUserId: otherUserId,
+          where: {
+            uid: chatUid,
+            [Op.or]: [
+              { user1Id: { [Op.eq]: owner.id } },
+              { user2Id: { [Op.eq]: owner.id } },
+            ],
+          },
+          populate: ['user1', 'user2'],
         },
-      }),
-    );
+      });
+
+      if (!chat) {
+        return { error: new NotFoundException('Chat not found!'), data: null };
+      }
+
+      await this.messageService.$db.updateBulkRecords({
+        owner,
+        options: {
+          where: {
+            chatId: chat.getDataValue('id'),
+            toUserId: owner.id,
+            isRead: false,
+          },
+        },
+        body: {
+          isRead: true,
+        },
+      });
+
+      const otherUserId = chat.getDataValue('user1Id') === owner.id 
+        ? chat.getDataValue('user2Id') 
+        : chat.getDataValue('user1Id');
+
+      await this.msClient.executeJob(
+        APPEVENTS.SOCKET,
+        new Job({
+          app: process.env.APP_ID,
+          action: 'sendMessagesRead',
+          owner,
+          payload: {
+            chatUid,
+            fromUserId: owner.id,
+            toUserId: otherUserId,
+          },
+        }),
+      );
+
+      return { error: null, data: { chatUid, messagesRead: true } };
+    } catch (error) {
+      return { error, data: null };
+    }
   }
 }

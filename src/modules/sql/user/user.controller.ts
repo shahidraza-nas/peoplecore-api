@@ -173,7 +173,7 @@ export class UserController {
    * Update a User using uid
    */
   @Put(':uid')
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @ApiOperation({ summary: 'Update a user using uid' })
   @ApiConsumes('application/json', 'multipart/form-data')
   @FileUploads([{ name: 'avatar_file', required: false, bodyField: 'avatar' }])
@@ -288,7 +288,7 @@ export class UserController {
     const { error, data } = await this.userService.findOne({
       owner,
       action: 'findOne',
-      payload: { ...query },
+      payload: { ...query }, // need to destructure it!!!
     });
 
     if (error) {
@@ -319,7 +319,7 @@ export class UserController {
       owner,
       action: 'findById',
       id: owner.id,
-      payload: { ...query },
+      payload: { ...query }, // need to destructure it!!!
     });
 
     if (error) {
@@ -351,7 +351,7 @@ export class UserController {
       owner,
       action: 'findById',
       uid,
-      payload: { ...query },
+      payload: { ...query }, // need to destructure it!!!
     });
 
     if (error) {
@@ -385,7 +385,7 @@ export class UserController {
       action: 'delete',
       uid,
       payload: {
-        ...query,
+        ...query, // need to destructure it!!!
         where: {
           created_by: owner.id
         }
