@@ -3,8 +3,7 @@ import { Newsfeed } from 'src/modules/sql/newsfeed/entities/newsfeed.entity';
 
 const seed: Seed<Newsfeed> = {
     model: 'Newsfeed',
-    action: 'always',
-    alwaysRule: 'truncate',
+    action: 'once',
     data: [
         {
             title: 'Office Closed for Holidays',
