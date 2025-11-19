@@ -7,6 +7,7 @@ import templateSeed from './template.seed';
 import userSeed from './user.seed';
 import chatSeed from './chat.seed';
 import chatMessageSeed from './chat-message.seed';
+import newsfeedSeed from './newsfeed.seed'
 
 const seeds: Seed<any>[] = [
   userSeed,
@@ -17,6 +18,7 @@ const seeds: Seed<any>[] = [
   templateSeed,
   chatSeed,
   chatMessageSeed,
+  newsfeedSeed
 ];
 
 export default seeds;

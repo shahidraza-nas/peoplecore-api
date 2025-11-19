@@ -21,6 +21,10 @@ import { UserModule } from './sql/user/user.module';
 import { JobLogModule } from './mongo/job-log/job-log.module';
 import { ChatModule } from './sql/chat/chat.module';
 import { ChatMessageModule } from './sql/chat-message/chat-message.module';
+import { ChannelModule } from './sql/channel/channel.module';
+import { MessageModule } from './sql/message/message.module';
+import { ChannelMemberModule } from './sql/channel-member/channel-member.module';
+import { NewsfeedModule } from './sql/newsfeed/newsfeed.module';
 
 export interface CommonModuleOption {
   defaultEngine?: AppEngine;
@@ -53,6 +57,10 @@ export class CommonModule {
       JobLogModule,
       ChatModule,
       ChatMessageModule,
+      ChannelModule,
+      MessageModule,
+      ChannelMemberModule,
+      NewsfeedModule,
     ];
 
     // common providers
