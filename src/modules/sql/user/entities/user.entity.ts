@@ -109,7 +109,6 @@ export class User extends SqlModel {
     if (avatarValue.startsWith('http://') || avatarValue.startsWith('https://')) {
       return avatarValue;
     }
-    
     // Otherwise, prepend CDN URL for local files
     return config().cdnURL + avatarValue;
   }
