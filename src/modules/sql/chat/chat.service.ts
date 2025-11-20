@@ -99,7 +99,7 @@ export class ChatService extends ModelService<Chat> {
   }
 
   /**
-   * Get user's chat list with last message preview
+   * Get user's chat list with last message preview and unread count
    */
   public async getMyChats(owner: OwnerDto, query: GetChatsQueryDto) {
     const chats = await this.$db.getAllRecords({
@@ -109,7 +109,20 @@ export class ChatService extends ModelService<Chat> {
         pagination: true,
         offset: query.offset,
         limit: query.limit,
-        attributes: ['id', 'uid', 'user1Id', 'user2Id', 'created_at', 'updated_at'],
+        attributes: [
+          'id',
+          'uid',
+          'user1Id',
+          'user2Id',
+          'created_at',
+          'updated_at',
+          [
+            Sequelize.literal(
+              `(SELECT COUNT(*) FROM chat_messages WHERE chat_id = "Chat"."id" AND to_user_id = ${owner.id} AND is_read = false)`,
+            ),
+            'unread_count',
+          ],
+        ],
         order: [[Sequelize.literal('id'), 'DESC']],
         where: {
           [Op.or]: [

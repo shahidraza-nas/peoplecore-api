@@ -158,6 +158,23 @@ export class ChatMessageService extends ModelService<ChatMessage> {
           },
         }),
       );
+      await this.msClient.executeJob(
+        'notification',
+        new Job({
+          app: process.env.APP_ID,
+          action: 'sendPushNotification',
+          owner,
+          payload: {
+            toUserId: toUser.id,
+            title: 'New Message',
+            body: `${owner.name} sent you a message.`,
+            data: {
+              chatUid: chatDetails.uid,
+              type: 'chat_message',
+            },
+          },
+        }),
+      );
     } catch (error) {
       console.log(error);
     }

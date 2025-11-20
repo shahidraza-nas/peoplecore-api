@@ -5,6 +5,7 @@ export const APPEVENTS = {
   MESSAGE: 'MESSAGE',
   SOCKET: 'SOCKET',
   NOTIFICATION: 'NOTIFICATION',
+  FIREBASE_NOTIFICATION: 'controller.firebase-notification',
   EMAIL: 'EMAIL',
 } as const;
 

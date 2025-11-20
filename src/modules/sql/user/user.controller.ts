@@ -19,6 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Request, Response } from 'express';
+import { Sequelize } from 'sequelize';
 import {
   ApiErrorResponses,
   FileUploads,
@@ -385,7 +386,20 @@ export class UserController {
       owner,
       action: 'findById',
       id: owner.id,
-      payload: { select, populate, scope },
+      payload: { 
+        select: select?.length ? [...select, 'unread_messages_count'] : undefined, 
+        populate, 
+        scope,
+        attributes: [
+          ...(select || ['uid', 'name', 'email', 'role', 'avatar', 'enable_2fa']),
+          [
+            Sequelize.literal(
+              `(SELECT COUNT(*) FROM chat_messages WHERE to_user_id = ${owner.id} AND is_read = false)`,
+            ),
+            'unread_messages_count',
+          ],
+        ],
+      },
     });
 
     if (error) {

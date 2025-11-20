@@ -13,6 +13,8 @@ export class MsClientService {
 
   async executeJob(queue: string, job: Job): Promise<JobResponse> {
     try {
+      console.log(queue)
+      // console.log(job)
       if (!(job instanceof Job)) {
         job = new Job(job);
       }
