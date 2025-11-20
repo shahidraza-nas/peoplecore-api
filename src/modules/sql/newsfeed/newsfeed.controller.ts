@@ -56,7 +56,7 @@ const entity = snakeCase(Newsfeed.name);
 @ApiExtraModels(Newsfeed)
 @Controller(entity)
 export class NewsfeedController {
-  constructor(private readonly newsfeedService: NewsfeedService) {}
+  constructor(private readonly newsfeedService: NewsfeedService) { }
 
   /**
    * Create a new entity document
@@ -133,11 +133,29 @@ export class NewsfeedController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetAll,
   ) {
-    const { error, data, offset, limit, count } =
+    console.log(query);
+    console.log(owner);
+    const { offset, limit, search, select, where, populate, scope, sort } = query;
+    const { error, data, offset: resOffset, limit: resLimit, count } =
       await this.newsfeedService.findAll({
         owner,
         action: 'findAll',
-        payload: { ...query },
+        payload: {
+          offset,
+          limit,
+          search,
+          select,
+          where: {
+            ...where,
+            $or: [
+              { created_by: owner.id },
+              { created_by: owner.created_by }
+            ]
+          },
+          populate,
+          scope,
+          sort,
+        },
       });
 
     if (error) {
@@ -147,7 +165,46 @@ export class NewsfeedController {
       });
     }
     return Result(res, {
-      data: { [pluralizeString(entity)]: data, offset, limit, count },
+      data: { [pluralizeString(entity)]: data, offset: resOffset, limit: resLimit, count },
+      message: 'Ok',
+    });
+  }
+  /**
+   * Get newsfeeds created by logged-in user
+   */
+  @Get('my-newsfeeds')
+  @ApiOperation({ summary: `Get newsfeeds created by me` })
+  @ResponseGetAll(Newsfeed)
+  async getMyNewsfeeds(
+    @Res() res: Response,
+    @Owner() owner: OwnerDto,
+    @Query() query: ApiQueryGetAll,
+  ) {
+    const { offset, limit, search, select, where, populate, scope, sort } = query;
+    const { error, data, offset: resOffset, limit: resLimit, count } =
+      await this.newsfeedService.findAll({
+        owner,
+        action: 'findAll',
+        payload: {
+          offset,
+          limit,
+          search,
+          select,
+          where: { ...where, created_by: owner.id },
+          populate,
+          scope,
+          sort,
+        },
+      });
+
+    if (error) {
+      return ErrorResponse(res, {
+        error,
+        message: `${error.message || error}`,
+      });
+    }
+    return Result(res, {
+      data: { [pluralizeString(entity)]: data, offset: resOffset, limit: resLimit, count },
       message: 'Ok',
     });
   }
@@ -225,11 +282,12 @@ export class NewsfeedController {
     @Param('id') id: number,
     @Query() query: ApiQueryGetById,
   ) {
-    const { error, data } = await this.newsfeedService.findById({
+    const { select, populate, scope } = query;
+    const { error, data } = await this.newsfeedService.getNewsfeedById({
       owner,
       action: 'findById',
       id: +id,
-      payload: { ...query },
+      payload: { select, populate, scope },
     });
 
     if (error) {
@@ -250,19 +308,19 @@ export class NewsfeedController {
   /**
    * Delete an entity document by using id
    */
-  @Delete(':id')
-  @ApiOperation({ summary: `Delete ${entity} using id` })
+  @Delete(':uid')
+  @ApiOperation({ summary: `Delete ${entity} using uid` })
   @ResponseDeleted(Newsfeed)
   async delete(
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Param('id') id: number,
+    @Param('uid') uid: string,
     @Query() query: ApiQueryDelete,
   ) {
     const { error, data } = await this.newsfeedService.delete({
       owner,
       action: 'delete',
-      id: +id,
+      uid,
       payload: { ...query },
     });
 

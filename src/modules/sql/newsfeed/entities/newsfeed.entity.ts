@@ -1,7 +1,7 @@
 import { SqlModel } from '@core/sql/sql.model';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
-import { Column, DataType, ForeignKey, Index, Table } from 'sequelize-typescript';
+import { BelongsTo, Column, DataType, ForeignKey, Index, Table } from 'sequelize-typescript';
 import { User } from '../../user/entities/user.entity';
 
 @Table
@@ -17,10 +17,8 @@ export class Newsfeed extends SqlModel {
   @IsString()
   declare content: string;
 
-  @ForeignKey(() => User)
-  @Column({ type: DataType.INTEGER })
-  @ApiProperty({ description: 'ID of the user who posted the Newsfeed', example: '101' })
-  declare authorId: number;
+  @BelongsTo(() => User, 'created_by')
+  author: User;
 
   @Column({ type: DataType.BOOLEAN, defaultValue: false })
   @ApiProperty({ description: 'Is it pinned to the top?', example: false })
@@ -40,4 +38,12 @@ export class Newsfeed extends SqlModel {
   @ApiProperty({ description: 'Tags for the newsfeed (comma-separated)', example: 'holiday,office' })
   @IsOptional()
   declare tags?: string;
+
+  @Column({ unique: 'uid' })
+  @ApiProperty({
+    description: 'Unique ID',
+    example: 'a926d382-6741-4d95-86cf-1f5c421cf654',
+    readOnly: true,
+  })
+  declare uid: string;
 }
