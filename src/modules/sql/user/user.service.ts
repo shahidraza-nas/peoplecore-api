@@ -4,7 +4,7 @@ import * as moment from 'moment-timezone';
 import { Job, JobResponse } from 'src/core/core.job';
 import { compareHash, generateHash } from 'src/core/core.utils';
 import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
-import { APPEVENTS } from 'src/constants/events.constants';
+import { APPEVENTS } from 'src/constants';
 import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 import { User } from './entities/user.entity';
 import { Role } from './role.enum';

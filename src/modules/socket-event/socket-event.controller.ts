@@ -2,7 +2,7 @@ import { Controller } from '@nestjs/common';
 import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
 import { SocketEventService } from './socket-event.service';
 import { MsListener } from 'src/core/core.decorators';
-import { APPEVENTS } from 'src/constants/events.constants';
+import { APPEVENTS } from 'src/constants';
 import { Job, JobResponse } from 'src/core/core.job';
 
 @Controller('socket-event')

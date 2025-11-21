@@ -7,7 +7,7 @@ import { Job, JobResponse } from 'src/core/core.job';
 import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
 import { TemplateService } from '../template/template.service';
 import { UserService } from '../user/user.service';
-import { APPEVENTS } from 'src/constants/events.constants';
+import { APPEVENTS } from 'src/constants';
 import { LoginLogService } from 'src/modules/mongo/login-log/login-log.service';
 
 @Injectable()
