@@ -25,6 +25,47 @@ export class UserService extends ModelService<User> {
   }
 
   /**
+   * Override findAll to apply bidirectional employee visibility
+   * Non-admin users can see:
+   * 1. Users they created (employees they added)
+   * 2. Users who created them (their manager/admin)
+   * @param job - Job object with owner and query params
+   * @returns JobResponse with list of users
+   */
+  async findAll(job: any): Promise<any> {
+    const { owner, payload = {} } = job;
+
+    // Build where clause with bidirectional relationship for non-admin users
+    const whereClause: any = {
+      ...payload.where,
+      role: {
+        $ne: Role.Admin
+      },
+      id: {
+        $ne: owner.id
+      }
+    };
+
+    // Non-admin users can see:
+    // 1. Users they created (employees they added)
+    // 2. Users who created them (their manager/admin)
+    if (owner.role !== Role.Admin) {
+      whereClause.$or = [
+        { created_by: owner.id },      // Users I created
+        { id: owner.created_by },       // User who created me
+      ];
+    }
+
+    return await super.findAll({
+      ...job,
+      payload: {
+        ...payload,
+        where: whereClause,
+      },
+    });
+  }
+
+  /**
    * Create user with welcome email
    * @param owner - Owner/creator information
    * @param body - User data to create

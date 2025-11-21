@@ -232,24 +232,7 @@ export class UserController {
           limit,
           search,
           select,
-          where: {
-            ...where,
-            // Non-admin users can see:
-            // 1. Users they created (employees they added)
-            // 2. Users who created them (their manager/admin)
-            ...(owner.role !== Role.Admin && {
-              $or: [
-                { created_by: owner.id },      // Users I created
-                { id: owner.created_by },       // User who created me
-              ]
-            }),
-            role: {
-              $ne: Role.Admin
-            },
-            id: {
-              $ne: owner.id
-            }
-          },
+          where,
           populate,
           scope,
           sort
