@@ -234,7 +234,15 @@ export class UserController {
           select,
           where: {
             ...where,
-            ...(owner.role !== Role.Admin && { created_by: owner.id }),
+            // Non-admin users can see:
+            // 1. Users they created (employees they added)
+            // 2. Users who created them (their manager/admin)
+            ...(owner.role !== Role.Admin && {
+              $or: [
+                { created_by: owner.id },      // Users I created
+                { id: owner.created_by },       // User who created me
+              ]
+            }),
             role: {
               $ne: Role.Admin
             },
