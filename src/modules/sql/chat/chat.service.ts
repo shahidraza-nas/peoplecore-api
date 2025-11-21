@@ -371,6 +371,7 @@ export class ChatService extends ModelService<Chat> {
         ? chat.getDataValue('user2Id') 
         : chat.getDataValue('user1Id');
 
+      // Emit event to the other user (sender) that their messages were read
       await this.msClient.executeJob(
         APPEVENTS.SOCKET,
         new Job({
@@ -385,9 +386,44 @@ export class ChatService extends ModelService<Chat> {
         }),
       );
 
+      // Also emit to current user (reader) to update their unread count
+      await this.msClient.executeJob(
+        APPEVENTS.SOCKET,
+        new Job({
+          app: process.env.APP_ID,
+          action: 'sendMessagesRead',
+          owner,
+          payload: {
+            chatUid,
+            fromUserId: owner.id,
+            toUserId: owner.id,
+          },
+        }),
+      );
+
       return { error: null, data: { chatUid, messagesRead: true } };
     } catch (error) {
       return { error, data: null };
+    }
+  }
+
+  /**
+   * Get total unread messages count for a user
+   */
+  public async getUnreadMessagesCount(userId: number): Promise<number> {
+    try {
+      const result = await this.messageService.$db.countAllRecords({
+        action: 'countUnreadMessages',
+        options: {
+          where: {
+            toUserId: userId,
+            isRead: false,
+          },
+        },
+      });
+      return result.count || 0;
+    } catch (error) {
+      return 0;
     }
   }
 }

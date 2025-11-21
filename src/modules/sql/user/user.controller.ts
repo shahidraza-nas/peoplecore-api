@@ -390,6 +390,8 @@ export class UserController {
         select: select?.length ? [...select, 'unread_messages_count'] : undefined, 
         populate, 
         scope,
+      },
+      options: {
         attributes: [
           ...(select || ['uid', 'name', 'email', 'role', 'avatar', 'enable_2fa']),
           [

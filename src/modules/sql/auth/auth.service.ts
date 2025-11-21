@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import * as moment from 'moment-timezone';
 import { Op } from 'sequelize';
@@ -14,6 +14,7 @@ import { OtpSessionType } from 'src/modules/mongo/otp-session/entities/otp-sessi
 import { OtpSessionService } from 'src/modules/mongo/otp-session/otp-session.service';
 import { User } from '../user/entities/user.entity';
 import { UserService } from '../user/user.service';
+import { ChatService } from '../chat/chat.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -33,6 +34,8 @@ export class AuthService {
     private otpSessionService: OtpSessionService,
     private msClient: MsClientService,
     private _cache: CachingService,
+    @Inject(forwardRef(() => ChatService))
+    private chatService: ChatService,
   ) {}
 
   async createSession(owner: OwnerDto, info: any): Promise<any> {
@@ -60,13 +63,17 @@ export class AuthService {
       if (tokenError) {
         return { error: tokenError };
       }
+      
+      // Get unread messages count
+      const unreadMessagesCount = await this.chatService.getUnreadMessagesCount(owner.id);
+      
       return {
         error: false,
         data: {
           token,
           token_expiry: tokenExpiry,
           refresh_token: refreshToken,
-          user: owner,
+          user: { ...owner, unread_messages_count: unreadMessagesCount },
           session_id: data._id,
         },
       };
@@ -113,13 +120,18 @@ export class AuthService {
         if (tokenError) {
           return { error: tokenError };
         }
+        
+        // Get unread messages count
+        const unreadMessagesCount = await this.chatService.getUnreadMessagesCount(userId);
+        const userJson = user.toJSON();
+        
         return {
           error: false,
           data: {
             token,
             token_expiry: tokenExpiry,
             refresh_token: refreshToken,
-            user,
+            user: { ...userJson, unread_messages_count: unreadMessagesCount },
             session_id: data._id,
           },
         };
