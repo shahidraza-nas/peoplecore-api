@@ -134,6 +134,16 @@ export class UserService extends ModelService<User> {
       if (findError || !user) {
         return { error: findError || 'User not found' };
       }
+
+      if (owner.role !== Role.Admin) {
+        const targetUserId = user.getDataValue('id');
+        const targetCreatedBy = user.getDataValue('created_by');
+        
+        if (targetCreatedBy !== owner.id && targetUserId !== owner.created_by) {
+          return { error: 'Permission denied. You can only view users you created or who created you.' };
+        }
+      }
+
       return await super.findById({
         owner,
         action: 'findById',
@@ -163,6 +173,16 @@ export class UserService extends ModelService<User> {
 
       if (findError || !user) {
         return { error: findError || 'User not found' };
+      }
+
+      // Permission check: Non-admin users can only update users they created (employees)
+      if (owner.role !== Role.Admin) {
+        const targetCreatedBy = user.getDataValue('created_by');
+        
+        // Only allow update if current user created this user (manager can update employee)
+        if (targetCreatedBy !== owner.id) {
+          return { error: 'Permission denied. You can only update users you created.' };
+        }
       }
 
       return await super.update({
@@ -197,6 +217,16 @@ export class UserService extends ModelService<User> {
 
       if (findError || !user) {
         return { error: findError || 'User not found' };
+      }
+
+      // Permission check: Non-admin users can only delete users they created (employees)
+      if (owner.role !== Role.Admin) {
+        const targetCreatedBy = user.getDataValue('created_by');
+        
+        // Only allow delete if current user created this user (manager can delete employee)
+        if (targetCreatedBy !== owner.id) {
+          return { error: 'Permission denied. You can only delete users you created.' };
+        }
       }
 
       return await super.delete({
