@@ -384,7 +384,7 @@ export class UserController {
       },
       options: {
         attributes: [
-          ...(select || ['uid', 'name', 'email', 'role', 'avatar', 'enable_2fa']),
+          ...(select || ['uid', 'name', 'first_name', 'last_name', 'email', 'role', 'avatar', 'enable_2fa', 'phone_code', 'phone', 'send_email', 'send_sms', 'send_push']),
           [
             Sequelize.literal(
               `(SELECT COUNT(*) FROM chat_messages WHERE to_user_id = ${owner.id} AND is_read = false)`,
