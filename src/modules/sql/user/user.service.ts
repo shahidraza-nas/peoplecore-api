@@ -186,7 +186,7 @@ export class UserService extends ModelService<User> {
       if (error) return { error };
 
       await this.msClient.executeJob(
-        'controller.notification',
+        APPEVENTS.NOTIFICATION,
         new Job({
           action: 'send',
           payload: {
