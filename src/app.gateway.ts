@@ -20,7 +20,7 @@ import { SocketStateService } from './core/modules/socket/socket-state/socket-st
 import { UserModule } from './modules/sql/user/user.module';
 import { UserService } from './modules/sql/user/user.service';
 import { MsClientService } from './core/modules/ms-client/ms-client.service';
-import { APPEVENTS } from './constants/events.constants';
+import { APPEVENTS } from './constants';
 import { Job } from './core/core.job';
 import { SendMessageDto } from './modules/sql/chat/dto/send-message.dto';
 

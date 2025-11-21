@@ -7,7 +7,7 @@ import { Job, JobResponse } from 'src/core/core.job';
 import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
 import { TemplateService } from '../template/template.service';
 import { UserService } from '../user/user.service';
-import { APPEVENTS } from 'src/constants/events.constants';
+import { APPEVENTS } from 'src/constants';
 import { LoginLogService } from 'src/modules/mongo/login-log/login-log.service';
 
 @Injectable()
@@ -87,17 +87,35 @@ export class NotificationService {
             notification: {
               title: payload.title,
               body: payload.body,
-              icon: '/images/icon-192x192.png',
-              actions: [
-                {
-                  action: 'open_chat',
-                  title: 'Open Chat'
-                }
-              ]
+              image: '/images/icon-192x192.png',
             },
             data: {
-              ...payload.data,
-              url: payload.data?.chatUid ? `/chat/${payload.data.chatUid}` : undefined
+              title: payload.title,
+              body: payload.body,
+              icon: '/images/icon-192x192.png',
+              badge: '/images/badge-72x72.png',
+              chatUid: payload.data?.chatUid || '',
+              type: payload.data?.type || 'chat_message',
+              url: payload.data?.chatUid ? `/chat/${payload.data.chatUid}` : '/chat',
+              click_action: 'FLUTTER_NOTIFICATION_CLICK',
+            },
+            webpush: {
+              notification: {
+                title: payload.title,
+                body: payload.body,
+                icon: '/images/icon-192x192.png',
+                badge: '/images/badge-72x72.png',
+                requireInteraction: true,
+                tag: payload.data?.chatUid || 'chat-notification',
+                vibrate: [200, 100, 200],
+                data: {
+                  chatUid: payload.data?.chatUid,
+                  url: payload.data?.chatUid ? `/chat/${payload.data.chatUid}` : '/chat',
+                },
+              },
+              fcm_options: {
+                link: payload.data?.chatUid ? `/chat/${payload.data.chatUid}` : '/chat',
+              },
             },
             // android: {
             //   notification: {

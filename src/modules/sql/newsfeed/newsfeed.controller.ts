@@ -145,13 +145,7 @@ export class NewsfeedController {
           limit,
           search,
           select,
-          where: {
-            ...where,
-            $or: [
-              { created_by: owner.id },
-              { created_by: owner.created_by }
-            ]
-          },
+          where,
           populate,
           scope,
           sort,

@@ -232,16 +232,7 @@ export class UserController {
           limit,
           search,
           select,
-          where: {
-            ...where,
-            ...(owner.role !== Role.Admin && { created_by: owner.id }),
-            role: {
-              $ne: Role.Admin
-            },
-            id: {
-              $ne: owner.id
-            }
-          },
+          where,
           populate,
           scope,
           sort

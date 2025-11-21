@@ -10,6 +10,7 @@ import { CreateReactionDto } from './dto/create-reaction.dto';
 import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 import { Op } from 'sequelize';
 import { Role } from '../user/role.enum';
+import { APPEVENTS } from 'src/constants';
 
 @Injectable()
 export class ChatMessageService extends ModelService<ChatMessage> {
@@ -66,7 +67,7 @@ export class ChatMessageService extends ModelService<ChatMessage> {
 
     // Emit to save message via microservice
     await this.msClient.executeJob(
-      'app.message',
+      APPEVENTS.MESSAGE,
       new Job({
         app: process.env.APP_ID,
         action: 'saveMessage',
@@ -147,7 +148,7 @@ export class ChatMessageService extends ModelService<ChatMessage> {
 
       // Emit to socket server
       await this.msClient.executeJob(
-        'socket.event',
+        APPEVENTS.SOCKET,
         new Job({
           app: 'socket-server',
           action: 'sendMessage',
@@ -159,7 +160,7 @@ export class ChatMessageService extends ModelService<ChatMessage> {
         }),
       );
       await this.msClient.executeJob(
-        'notification',
+        APPEVENTS.NOTIFICATION,
         new Job({
           app: process.env.APP_ID,
           action: 'sendPushNotification',
@@ -252,7 +253,7 @@ export class ChatMessageService extends ModelService<ChatMessage> {
       });
 
       await this.msClient.executeJob(
-        'socket.event',
+        APPEVENTS.SOCKET,
         new Job({
           app: 'socket-server',
           action: 'sendMessage',

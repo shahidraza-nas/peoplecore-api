@@ -4,7 +4,7 @@ import * as moment from 'moment-timezone';
 import { Job, JobResponse } from 'src/core/core.job';
 import { compareHash, generateHash } from 'src/core/core.utils';
 import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
-import { APPEVENTS } from 'src/constants/events.constants';
+import { APPEVENTS } from 'src/constants';
 import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 import { User } from './entities/user.entity';
 import { Role } from './role.enum';
@@ -22,6 +22,47 @@ export class UserService extends ModelService<User> {
     private msClient: MsClientService,
   ) {
     super(db);
+  }
+
+  /**
+   * Override findAll to apply bidirectional employee visibility
+   * Non-admin users can see:
+   * 1. Users they created (employees they added)
+   * 2. Users who created them (their manager/admin)
+   * @param job - Job object with owner and query params
+   * @returns JobResponse with list of users
+   */
+  async findAll(job: any): Promise<any> {
+    const { owner, payload = {} } = job;
+
+    // Build where clause with bidirectional relationship for non-admin users
+    const whereClause: any = {
+      ...payload.where,
+      role: {
+        $ne: Role.Admin
+      },
+      id: {
+        $ne: owner.id
+      }
+    };
+
+    // Non-admin users can see:
+    // 1. Users they created (employees they added)
+    // 2. Users who created them (their manager/admin)
+    if (owner.role !== Role.Admin) {
+      whereClause.$or = [
+        { created_by: owner.id },      // Users I created
+        { id: owner.created_by },       // User who created me
+      ];
+    }
+
+    return await super.findAll({
+      ...job,
+      payload: {
+        ...payload,
+        where: whereClause,
+      },
+    });
   }
 
   /**
@@ -93,6 +134,16 @@ export class UserService extends ModelService<User> {
       if (findError || !user) {
         return { error: findError || 'User not found' };
       }
+
+      if (owner.role !== Role.Admin) {
+        const targetUserId = user.getDataValue('id');
+        const targetCreatedBy = user.getDataValue('created_by');
+        
+        if (targetCreatedBy !== owner.id && targetUserId !== owner.created_by) {
+          return { error: 'Permission denied. You can only view users you created or who created you.' };
+        }
+      }
+
       return await super.findById({
         owner,
         action: 'findById',
@@ -122,6 +173,16 @@ export class UserService extends ModelService<User> {
 
       if (findError || !user) {
         return { error: findError || 'User not found' };
+      }
+
+      // Permission check: Non-admin users can only update users they created (employees)
+      if (owner.role !== Role.Admin) {
+        const targetCreatedBy = user.getDataValue('created_by');
+        
+        // Only allow update if current user created this user (manager can update employee)
+        if (targetCreatedBy !== owner.id) {
+          return { error: 'Permission denied. You can only update users you created.' };
+        }
       }
 
       return await super.update({
@@ -158,6 +219,16 @@ export class UserService extends ModelService<User> {
         return { error: findError || 'User not found' };
       }
 
+      // Permission check: Non-admin users can only delete users they created (employees)
+      if (owner.role !== Role.Admin) {
+        const targetCreatedBy = user.getDataValue('created_by');
+        
+        // Only allow delete if current user created this user (manager can delete employee)
+        if (targetCreatedBy !== owner.id) {
+          return { error: 'Permission denied. You can only delete users you created.' };
+        }
+      }
+
       return await super.delete({
         owner,
         action: 'delete',
@@ -186,7 +257,7 @@ export class UserService extends ModelService<User> {
       if (error) return { error };
 
       await this.msClient.executeJob(
-        'controller.notification',
+        APPEVENTS.NOTIFICATION,
         new Job({
           action: 'send',
           payload: {

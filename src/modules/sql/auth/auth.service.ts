@@ -19,6 +19,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { TokenAuthDto } from './strategies/token/token-auth.dto';
+import { APPEVENTS } from 'src/constants';
 
 export interface AuthResponse {
   error?: any;
@@ -242,7 +243,7 @@ export class AuthService {
       },
     });
     await this.msClient.executeJob(
-      'controller.notification',
+      APPEVENTS.NOTIFICATION,
       new Job({
         action: 'send',
         payload: {

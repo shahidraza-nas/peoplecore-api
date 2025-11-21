@@ -10,7 +10,7 @@ import { UserService } from '../user/user.service';
 import { ChatMessageService } from '../chat-message/chat-message.service';
 import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
 import { Job } from 'src/core/core.job';
-import { APPEVENTS } from 'src/constants/events.constants';
+import { APPEVENTS } from 'src/constants';
 
 @Injectable()
 export class ChatService extends ModelService<Chat> {

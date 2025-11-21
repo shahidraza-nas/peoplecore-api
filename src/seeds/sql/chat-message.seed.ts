@@ -32,7 +32,7 @@ const seed: Seed<Partial<ChatMessage>> = {
       fromUserId: 9,
       toUserId: 1,
       message: 'Sure, I\'ll schedule a meeting for 3 PM.',
-      isRead: false,
+      isRead: true,
     },
 
     // Chat 2: Admin (1) <-> Reed (12) - Onboarding
@@ -62,7 +62,7 @@ const seed: Seed<Partial<ChatMessage>> = {
       fromUserId: 12,
       toUserId: 1,
       message: 'Yes, I\'m trying to understand the dual database architecture. Could we discuss it tomorrow?',
-      isRead: false,
+      isRead: true,
     },
 
     // Chat 3: Shahid (9) <-> Test User (2) - Testing
@@ -85,7 +85,7 @@ const seed: Seed<Partial<ChatMessage>> = {
       fromUserId: 9,
       toUserId: 2,
       message: 'Perfect! Let me know if you notice any issues.',
-      isRead: false,
+      isRead: true,
     },
 
     // Chat 4: Shahid (9) <-> Reed (12) - Technical discussion
@@ -115,7 +115,7 @@ const seed: Seed<Partial<ChatMessage>> = {
       fromUserId: 12,
       toUserId: 9,
       message: 'Thanks! I\'ll definitely reach out. The custom decorators are interesting.',
-      isRead: false,
+      isRead: true,
     },
 
     // Chat 5: Admin (1) <-> Test User (2) - System check
@@ -154,7 +154,7 @@ const seed: Seed<Partial<ChatMessage>> = {
       fromUserId: 12,
       toUserId: 13,
       message: 'Great! See you then.',
-      isRead: false,
+      isRead: true,
     },
   ],
 };
