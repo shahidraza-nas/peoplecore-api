@@ -1,8 +1,9 @@
 import { SqlModel } from '@core/sql/sql.model';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { BelongsTo, Column, DataType, ForeignKey, Table } from 'sequelize-typescript';
+import { BeforeCreate, BelongsTo, Column, DataType, ForeignKey, Index, Table } from 'sequelize-typescript';
 import { User } from '../../user/entities/user.entity';
+import { uuid } from 'src/core/core.utils';
 
 export enum SubscriptionStatus {
   ACTIVE = 'active',
@@ -26,11 +27,13 @@ export class Subscription extends SqlModel {
   @BelongsTo(() => User)
   user: User;
 
+  @Index('idx_stripe_subscription_id')
   @Column({ unique: true })
   @ApiProperty({ description: 'Stripe Subscription ID' })
   @IsString()
   declare stripe_subscription_id: string;
 
+  @Index('idx_stripe_customer_id')
   @Column
   @ApiProperty({ description: 'Stripe Customer ID' })
   @IsString()
@@ -69,7 +72,21 @@ export class Subscription extends SqlModel {
   @IsOptional()
   declare currency: string;
 
+  @Column({ allowNull: true })
+  @ApiProperty({ description: 'Cancellation timestamp', required: false })
+  @IsOptional()
+  declare cancelled_at: Date;
+
+  @Column({ defaultValue: false })
+  @ApiProperty({ description: 'Whether expiry notification was sent', required: false })
+  declare expiry_notification_sent: boolean;
+
   @Column({ unique: 'uid' })
-  @ApiProperty({ description: 'Unique ID' })
+  @ApiProperty({ description: 'Unique ID', readOnly: true, })
   declare uid: string;
+
+  @BeforeCreate
+  static setUuid(instance: Subscription) {
+    instance.uid = `subs_${uuid()}`;
+  }
 }

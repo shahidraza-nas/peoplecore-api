@@ -112,6 +112,56 @@ export class SubscriptionController {
   }
 
   /**
+ * Get user's subscription history
+ */
+  @Get('history')
+  @ApiOperation({ summary: 'Get user subscription history' })
+  @ResponseGetAll(SubscriptionEntity)
+  async getHistory(
+    @Res() res: Response,
+    @Owner() owner: OwnerDto,
+    @Query() query: ApiQueryGetAll
+  ) {
+    const { error, data, count } = await this.subscriptionService.findAll({
+      owner,
+      action: 'findAll',
+      payload: {
+        where: { user_id: owner.id },
+        sort: [['created_at', 'desc']],
+        ...query,
+      },
+    });
+
+    if (error) {
+      return ErrorResponse(res, { error, message: error.message });
+    }
+
+    return Result(res, {
+      data: { subscriptions: data, count },
+      message: 'Ok',
+    });
+  }
+
+  /**
+ * Get subscription metrics (admin only)
+ */
+  @Get('metrics')
+  @ApiOperation({ summary: 'Get subscription analytics and metrics' })
+  @ResponseGetOne(Object)
+  async getMetrics(@Res() res: Response) {
+    const { error, data } = await this.subscriptionService.getSubscriptionMetrics();
+
+    if (error) {
+      return ErrorResponse(res, { error, message: error.message });
+    }
+
+    return Result(res, {
+      data: { metrics: data },
+      message: 'Ok',
+    });
+  }
+
+  /**
  * Cancel subscription
  */
   @Delete('cancel')

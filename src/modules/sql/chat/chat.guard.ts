@@ -26,7 +26,6 @@ export class ChatAccessGuard implements CanActivate {
          * Check if user has active subscription
          */
         const hasAccess = await this.subscriptionService.checkChatAccess(user.id);
-
         if (!hasAccess) {
             throw new ForbiddenException('Active subscription required to access chat');
         }

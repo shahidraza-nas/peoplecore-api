@@ -2,6 +2,7 @@ import { EmailModule } from '@core/email';
 import { MongoModule } from '@core/mongo';
 import { SqlModule } from '@core/sql';
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { AppController } from './app.controller';
 import { AppGateway } from './app.gateway';
@@ -17,6 +18,7 @@ import { StripeModule } from "@core/stripe";
 @Module({
   imports: [
     CoreModule,
+    ScheduleModule.forRoot(),
     MongoModule.root({ seeder: true }),
     SqlModule.root({ seeder: true }),
     EmailModule,
@@ -25,8 +27,8 @@ import { StripeModule } from "@core/stripe";
     GeocoderModule,
     TwilioModule,
     SocketEventModule,
-        StripeModule
-    ],
+    StripeModule,
+  ],
   controllers: [AppController],
   providers: [AppService, AppGateway],
 })
