@@ -25,6 +25,7 @@ import { ChannelModule } from './sql/channel/channel.module';
 import { MessageModule } from './sql/message/message.module';
 import { ChannelMemberModule } from './sql/channel-member/channel-member.module';
 import { NewsfeedModule } from './sql/newsfeed/newsfeed.module';
+import { SubscriptionModule } from './sql/subscription/subscription.module';
 
 export interface CommonModuleOption {
   defaultEngine?: AppEngine;
@@ -61,6 +62,7 @@ export class CommonModule {
       MessageModule,
       ChannelMemberModule,
       NewsfeedModule,
+      SubscriptionModule,
     ];
 
     // common providers

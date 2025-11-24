@@ -9,7 +9,9 @@ import {
   Query,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
+import { ChatAccessGuard } from '../chat/chat.guard';
 import {
   ApiBearerAuth,
   ApiExtraModels,
@@ -56,6 +58,7 @@ const entity = snakeCase(ChatMessage.name);
 @ApiBearerAuth()
 @ApiErrorResponses()
 @ApiExtraModels(ChatMessage)
+@UseGuards(ChatAccessGuard)
 @Controller(entity)
 export class ChatMessageController {
   constructor(

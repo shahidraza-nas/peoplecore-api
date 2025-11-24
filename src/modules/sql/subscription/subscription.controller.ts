@@ -7,18 +7,14 @@ import {
   Post,
   Put,
   Query,
-  Req,
   Res,
-  UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
 import {
   ApiBearerAuth,
   ApiExtraModels,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { ChatAccessGuard } from './chat.guard';
 import { Response } from 'express';
 import {
   ApiErrorResponses,
@@ -45,73 +41,150 @@ import {
   ApiQueryGetOne,
   ApiQueryUpdate,
 } from 'src/core/dto/query.dto';
-import { CreateChatDto } from './dto/create-chat.dto';
-import { UpdateChatDto } from './dto/update-chat.dto';
-import { SendMessageDto } from './dto/send-message.dto';
-import { Chat } from './entities/chat.entity';
-import { ChatService } from './chat.service';
-import { MsListener } from 'src/core/core.decorators';
-import { APPEVENTS } from 'src/constants';
-import { Job, JobResponse } from 'src/core/core.job';
-import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
+import { CreateSubscriptionDto } from './dto/create-subscription.dto';
+import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
+import { CreateCheckoutDto } from './dto/create-checkout.dto';
+import { Subscription as SubscriptionEntity } from './entities/subscription.entity';
+import { SubscriptionService } from './subscription.service';
 
-const entity = snakeCase(Chat.name);
+const entity = snakeCase(SubscriptionEntity.name);
 
 @ApiTags(entity)
 @ApiBearerAuth()
 @ApiErrorResponses()
-@ApiExtraModels(Chat)
-@UseGuards(ChatAccessGuard)
+@ApiExtraModels(SubscriptionEntity)
 @Controller(entity)
-export class ChatController {
+export class SubscriptionController {
   constructor(
-    private readonly chatService: ChatService,
-    private readonly msClient: MsClientService,
+    private readonly subscriptionService: SubscriptionService,
   ) { }
 
   /**
-   * Queue listener for Chat events
+   * SUBSCRIPTION ENDPOINTS >>>
    */
-  @MsListener(APPEVENTS.CHAT)
-  async execute(job: Job): Promise<void> {
-    const response = await this.chatService[job.action]<JobResponse>(
-      new Job(job),
+
+  /**
+   * Create Stripe checkout session for one-time payment
+   */
+  @Post('create-checkout-session')
+  @ApiOperation({ summary: 'Create checkout session for subscription payment' })
+  @ResponseCreated(Object)
+  async createCheckoutSession(
+    @Res() res: Response,
+    @Owner() owner: OwnerDto,
+    @Body() createCheckoutDto: CreateCheckoutDto,
+  ) {
+    const { error, data: session } = await this.subscriptionService.createCheckoutSession(
+      owner.id,
+      owner.email,
+      createCheckoutDto.amount || 10, // Default $10
+      createCheckoutDto.planType || 'chat_monthly',
     );
-    await this.msClient.jobDone(job, response);
+
+    if (error) {
+      return ErrorResponse(res, { error, message: error.message });
+    }
+
+    return Created(res, {
+      data: { sessionUrl: session.url, sessionId: session.id },
+      message: 'Checkout session created',
+    });
   }
 
   /**
-   * Create or find a chat with another user
+ * Check user's subscription status
+ */
+  @Get('status')
+  @ApiOperation({ summary: 'Get current subscription status' })
+  @ResponseGetOne(Object)
+  async getStatus(@Res() res: Response, @Owner() owner: OwnerDto) {
+    try {
+      const hasAccess = await this.subscriptionService.checkChatAccess(owner.id);
+      const subscription = await this.subscriptionService.getUserSubscription(owner.id);
+
+      return Result(res, {
+        data: { hasAccess, subscription },
+        message: 'Ok',
+      });
+    } catch (error) {
+      return ErrorResponse(res, { error, message: error.message });
+    }
+  }
+
+  /**
+ * Cancel subscription
+ */
+  @Delete('cancel')
+  @ApiOperation({ summary: 'Cancel active subscription' })
+  async cancelSubscription(@Res() res: Response, @Owner() owner: OwnerDto) {
+    try {
+      const { error, data } = await this.subscriptionService.cancelUserSubscription(owner.id);
+
+      if (error) {
+        return ErrorResponse(res, { error, message: error.message });
+      }
+
+      return Result(res, {
+        data: { subscription: data },
+        message: 'Subscription cancelled',
+      });
+    } catch (error) {
+      return ErrorResponse(res, { error, message: error.message });
+    }
+  }
+
+  /**
+   * Process payment after successful checkout
+   */
+  @Get('process-payment/:sessionId')
+  @ApiOperation({ summary: 'Process payment and activate subscription' })
+  async processPayment(
+    @Res() res: Response,
+    @Owner() owner: OwnerDto,
+    @Param('sessionId') sessionId: string,
+  ) {
+    const { error, data } = await this.subscriptionService.processPayment(sessionId);
+
+    if (error) {
+      return ErrorResponse(res, { error, message: error.message });
+    }
+
+    return Result(res, {
+      data: { subscription: data },
+      message: 'Subscription activated',
+    });
+  }
+
+  /**
+   * <<< SUBSCRIPTION ENDPOINTS
+   */
+
+  /**
+   * Create a new entity document
    */
   @Post()
-  @ApiOperation({ summary: `Create or find chat with user` })
-  @ResponseCreated(Chat)
+  @ApiOperation({ summary: `Create new ${entity}` })
+  @ResponseCreated(SubscriptionEntity)
   async create(
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Body() createChatDto: CreateChatDto,
+    @Body() createSubscriptionDto: CreateSubscriptionDto,
     @Query() query: ApiQueryCreate,
   ) {
-    try {
-      const { error, data } = await this.chatService.findOrCreateChat(
-        owner,
-        createChatDto.userUid,
-      );
+    const { error, data } = await this.subscriptionService.create({
+      owner,
+      action: 'create',
+      body: createSubscriptionDto,
+      payload: { ...query },
+    });
 
-      if (error) {
-        return ErrorResponse(res, {
-          error,
-          message: `${error}`,
-        });
-      }
-
-      return Created(res, { data: { [entity]: data }, message: 'Chat ready' });
-    } catch (error) {
+    if (error) {
       return ErrorResponse(res, {
         error,
-        message: error.message || 'Failed to create chat',
+        message: `${error.message || error}`,
       });
     }
+    return Created(res, { data: { [entity]: data }, message: 'Created' });
   }
 
   /**
@@ -119,19 +192,19 @@ export class ChatController {
    */
   @Put(':id')
   @ApiOperation({ summary: `Update ${entity} using id` })
-  @ResponseUpdated(Chat)
+  @ResponseUpdated(SubscriptionEntity)
   async update(
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Param('id') id: number,
-    @Body() updateChatDto: UpdateChatDto,
+    @Body() updateSubscriptionDto: UpdateSubscriptionDto,
     @Query() query: ApiQueryUpdate,
   ) {
-    const { error, data } = await this.chatService.update({
+    const { error, data } = await this.subscriptionService.update({
       owner,
       action: 'update',
       id: +id,
-      body: updateChatDto,
+      body: updateSubscriptionDto,
       payload: { ...query },
     });
 
@@ -151,18 +224,22 @@ export class ChatController {
   }
 
   /**
-   * Return all entity documents list (my chats)
+   * Return all entity documents list
    */
   @Get()
-  @ApiOperation({ summary: `Get my ${pluralizeString(entity)}` })
-  @ResponseGetAll(Chat)
+  @ApiOperation({ summary: `Get all ${pluralizeString(entity)}` })
+  @ResponseGetAll(SubscriptionEntity)
   async findAll(
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetAll,
   ) {
     const { error, data, offset, limit, count } =
-      await this.chatService.getMyChats(owner, query);
+      await this.subscriptionService.findAll({
+        owner,
+        action: 'findAll',
+        payload: { ...query },
+      });
 
     if (error) {
       return ErrorResponse(res, {
@@ -187,7 +264,7 @@ export class ChatController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryCountAll,
   ) {
-    const { error, count } = await this.chatService.getCount({
+    const { error, count } = await this.subscriptionService.getCount({
       owner,
       action: 'getCount',
       payload: { ...query },
@@ -206,40 +283,17 @@ export class ChatController {
   }
 
   /**
-   * Send a message
-   */
-  @Post('send')
-  @ApiOperation({ summary: 'Send a message' })
-  @ResponseCreated(Chat)
-  async sendMessage(
-    @Res() res: Response,
-    @Owner() owner: OwnerDto,
-    @Body() dto: SendMessageDto,
-  ) {
-    const { error, data } = await this.chatService.sendMessage(owner, dto);
-
-    if (error) {
-      return ErrorResponse(res, {
-        error,
-        message: `${error}`,
-      });
-    }
-
-    return Created(res, { data: { message: data }, message: 'Message sent' });
-  }
-
-  /**
    * Find one entity document
    */
   @Get('find')
   @ApiOperation({ summary: `Find one ${entity}` })
-  @ResponseGetOne(Chat)
+  @ResponseGetOne(SubscriptionEntity)
   async findOne(
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetOne,
   ) {
-    const { error, data } = await this.chatService.findOne({
+    const { error, data } = await this.subscriptionService.findOne({
       owner,
       action: 'findOne',
       payload: { ...query },
@@ -260,21 +314,19 @@ export class ChatController {
     return Result(res, { data: { [entity]: data }, message: 'Ok' });
   }
 
-
-
   /**
    * Get an entity document by using id
    */
   @Get(':id')
   @ApiOperation({ summary: `Find ${entity} using id` })
-  @ResponseGetOne(Chat)
+  @ResponseGetOne(SubscriptionEntity)
   async findById(
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Param('id') id: number,
     @Query() query: any,
   ) {
-    const { error, data } = await this.chatService.findById({
+    const { error, data } = await this.subscriptionService.findById({
       owner,
       action: 'findById',
       id: +id,
@@ -297,75 +349,18 @@ export class ChatController {
   }
 
   /**
-   * Get messages for a specific chat
-   * IMPORTANT: Must be before @Delete(':id') to avoid route conflict
-   */
-  @Get(':chatUid/messages')
-  @ApiOperation({ summary: 'Get Messages' })
-  @ResponseGetAll(Chat)
-  async getMessages(
-    @Res() res: Response,
-    @Owner() owner: OwnerDto,
-    @Query() query: any,
-    @Param('chatUid') chatUid: string,
-  ) {
-    const { error, data, count, limit, offset } =
-      await this.chatService.getChatMessages(owner, chatUid, query);
-
-    if (error) {
-      return ErrorResponse(res, {
-        error,
-        message: `${error.message || error}`,
-      });
-    }
-
-    return Result(res, {
-      data: { messages: data, count, limit, offset },
-      message: 'Ok',
-    });
-  }
-
-  /**
-   * Mark all messages as read
-   * IMPORTANT: Must be before @Delete(':id') to avoid route conflict
-   */
-  @Get(':chatUid/messages/readAll')
-  @ApiOperation({ summary: 'Read All Messages' })
-  @ResponseGetAll(Chat)
-  async readAllMessages(
-    @Res() res: Response,
-    @Owner() owner: OwnerDto,
-    @Param('chatUid') chatUid: string,
-  ) {
-    await this.msClient.executeJob(
-      APPEVENTS.CHAT,
-      new Job({
-        app: process.env.APP_ID,
-        action: 'readAllMessages',
-        owner,
-        payload: { chatUid },
-      }),
-    );
-
-    return Result(res, {
-      data: {},
-      message: 'Ok',
-    });
-  }
-
-  /**
    * Delete an entity document by using id
    */
   @Delete(':id')
   @ApiOperation({ summary: `Delete ${entity} using id` })
-  @ResponseDeleted(Chat)
+  @ResponseDeleted(SubscriptionEntity)
   async delete(
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Param('id') id: number,
     @Query() query: any,
   ) {
-    const { error, data } = await this.chatService.delete({
+    const { error, data } = await this.subscriptionService.delete({
       owner,
       action: 'delete',
       id: +id,
@@ -386,5 +381,4 @@ export class ChatController {
     }
     return Result(res, { data: { [entity]: data }, message: 'Deleted' });
   }
-
 }

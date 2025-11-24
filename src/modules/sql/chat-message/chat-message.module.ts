@@ -6,6 +6,8 @@ import { ChatMessageService } from './chat-message.service';
 import { UserModule } from '../user/user.module';
 import { ChatModule } from '../chat/chat.module';
 import { MsClientModule } from 'src/core/modules/ms-client/ms-client.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
+import { ChatAccessGuard } from '../chat/chat.guard';
 
 @Module({
   imports: [
@@ -13,9 +15,10 @@ import { MsClientModule } from 'src/core/modules/ms-client/ms-client.module';
     forwardRef(() => UserModule),
     forwardRef(() => ChatModule),
     MsClientModule,
+    SubscriptionModule,
   ],
   controllers: [ChatMessageController],
-  providers: [ChatMessageService],
+  providers: [ChatMessageService, ChatAccessGuard],
   exports: [ChatMessageService],
 })
 export class ChatMessageModule {}

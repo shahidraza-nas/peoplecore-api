@@ -12,6 +12,7 @@ import { FirebaseModule } from '@core/firebase';
 import { GeocoderModule } from '@core/geocoder';
 import { TwilioModule } from '@core/twilio';
 import { SocketEventModule } from './modules/socket-event/socket-event.module';
+import { StripeModule } from "@core/stripe";
 
 @Module({
   imports: [
@@ -24,7 +25,8 @@ import { SocketEventModule } from './modules/socket-event/socket-event.module';
     GeocoderModule,
     TwilioModule,
     SocketEventModule,
-  ],
+        StripeModule
+    ],
   controllers: [AppController],
   providers: [AppService, AppGateway],
 })

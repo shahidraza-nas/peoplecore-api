@@ -53,6 +53,12 @@
       ],
       "@core/twilio/*": [
         "libs/twilio/src/*"
+      ],
+      "@core/stripe": [
+        "libs/stripe/src"
+      ],
+      "@core/stripe/*": [
+        "libs/stripe/src/*"
       ]
     }
   }
