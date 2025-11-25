@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { StripeService } from '@core/stripe';
 import { ConfigService } from '@nestjs/config';
 import { Subscription, SubscriptionStatus } from './entities/subscription.entity';
+import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 
 @Injectable()
 export class SubscriptionService extends ModelService<Subscription> {
@@ -21,18 +22,20 @@ export class SubscriptionService extends ModelService<Subscription> {
    * Backend will handle subscription logic, not Stripe
    */
   async createCheckoutSession(
-    userId: number,
-    userEmail: string,
-    amount: number,
-    planType: string,
+    owner: OwnerDto,
+    createCheckoutDto: any,
   ) {
+    const userId = owner.id;
+    const userEmail = owner.email;
+    const amount = createCheckoutDto.amount || 10; // Default $10
+    const planType = createCheckoutDto.planType || 'chat_monthly';
     const frontendUrl = this.configService.get('FRONTEND_URL');
 
     try {
       /**
        * Check if user already has an active subscription
        */
-      const hasActiveSubscription = await this.isSubscriptionActive(userId);
+      const hasActiveSubscription = await this.isSubscriptionActive(owner);
       if (hasActiveSubscription) {
         return {
           error: new Error('You already have an active subscription'),
@@ -86,27 +89,22 @@ export class SubscriptionService extends ModelService<Subscription> {
 
       return { error: null, data: session };
     } catch (error) {
-      // Log error for debugging
       console.error('Checkout session creation failed:', error.message);
-      
-      // Return user-friendly error messages based on error type
       if (error.type === 'StripeInvalidRequestError') {
-        return { 
-          error: new Error('Invalid payment request. Please check your details and try again.'), 
-          data: null 
+        return {
+          error: new Error('Invalid payment request. Please check your details and try again.'),
+          data: null
         };
       }
-      
       if (error.type === 'StripeAPIError') {
-        return { 
-          error: new Error('Payment service temporarily unavailable. Please try again later.'), 
-          data: null 
+        return {
+          error: new Error('Payment service temporarily unavailable. Please try again later.'),
+          data: null
         };
       }
-      
-      return { 
-        error: new Error(error.message || 'Failed to create payment session'), 
-        data: null 
+      return {
+        error: new Error(error.message || 'Failed to create payment session'),
+        data: null
       };
     }
   }
@@ -130,7 +128,7 @@ export class SubscriptionService extends ModelService<Subscription> {
       });
 
       if (existing) {
-        return { error: null, data: existing }; // Already processed
+        return { error: null, data: existing };
       }
 
       const session = await this.stripeService.stripe.checkout.sessions.retrieve(sessionId);
@@ -180,31 +178,38 @@ export class SubscriptionService extends ModelService<Subscription> {
    * Includes 3-day grace period after expiration
    * Updates status to EXPIRED if grace period has ended
    */
-  async checkChatAccess(userId: number): Promise<boolean> {
+  async checkChatAccess(owner: OwnerDto): Promise<boolean> {
     const { data: subscription } = await this.findOne({
-      owner: { id: userId } as any,
+      owner,
       action: 'findOne',
       payload: {
         where: {
-          user_id: userId,
+          user_id: owner.id,
         },
         sort: [['created_at', 'desc']],
       },
     });
 
     if (!subscription) return false;
-    
-    // Only check ACTIVE subscriptions
+
+    /**
+     * Only check ACTIVE subscriptions
+     */
     if (subscription.status !== SubscriptionStatus.ACTIVE) return false;
-    
+
     const now = new Date();
     const gracePeriodEnd = new Date(subscription.current_period_end);
-    gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 3); // 3-day grace period
-    
-    // If grace period has ended, mark as expired
+    /**
+     * 3-day grace period
+     */
+    gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 3);
+
+    /**
+     * If grace period has ended, mark as expired
+     */
     if (now >= gracePeriodEnd) {
       await this.update({
-        owner: { id: userId } as any,
+        owner,
         action: 'update',
         id: subscription.id,
         body: {
@@ -214,20 +219,18 @@ export class SubscriptionService extends ModelService<Subscription> {
       });
       return false;
     }
-    
-    // Still within grace period or subscription is active
     return true;
   }
   /**
    * Get user's active subscription
    */
-  async getUserSubscription(userId: number) {
+  async getUserSubscription(owner: OwnerDto) {
     const { data: subscription } = await this.findOne({
-      owner: { id: userId } as any,
+      owner,
       action: 'findOne',
       payload: {
         where: {
-          user_id: userId,
+          user_id: owner.id,
         },
         sort: [['created_at', 'desc']],
       },
@@ -241,8 +244,8 @@ export class SubscriptionService extends ModelService<Subscription> {
   /**
    * Cancel user subscription (backend-only, no Stripe interaction)
    */
-  async cancelUserSubscription(userId: number) {
-    const subscription = await this.getUserSubscription(userId);
+  async cancelUserSubscription(owner: OwnerDto) {
+    const subscription = await this.getUserSubscription(owner);
 
     if (!subscription) {
       return { error: new Error('No subscription found') };
@@ -250,7 +253,7 @@ export class SubscriptionService extends ModelService<Subscription> {
 
     // Update in database only (no Stripe cancellation needed for one-time payments)
     return this.update({
-      owner: { id: userId } as any,
+      owner,
       action: 'update',
       id: subscription.id,
       body: {
@@ -264,11 +267,11 @@ export class SubscriptionService extends ModelService<Subscription> {
   /**
    * Determines whether a user's subscription is currently active.
    *
-   * @param userId - The unique identifier of the user whose subscription status is being checked.
+   * @param owner - The owner information containing the user's ID.
    * @returns A promise that resolves to `true` if the user's subscription is active and the current date is before the subscription's period end; otherwise, `false`.
    */
-  async isSubscriptionActive(userId: number): Promise<boolean> {
-    const subscription = await this.getUserSubscription(userId);
+  async isSubscriptionActive(owner: OwnerDto): Promise<boolean> {
+    const subscription = await this.getUserSubscription(owner);
     if (!subscription) return false;
 
     const now = new Date();
@@ -289,8 +292,8 @@ export class SubscriptionService extends ModelService<Subscription> {
    * @param userId - The unique identifier of the user to check subscription status for.
    * @returns A promise that resolves to `true` if the user is subscribed, or `false` otherwise.
    */
-  async isSubscribed(userId: number): Promise<boolean> {
-    const subscription = await this.getUserSubscription(userId);
+  async isSubscribed(owner: OwnerDto): Promise<boolean> {
+    const subscription = await this.getUserSubscription(owner);
     if (!subscription) return false;
     const now = new Date();
     return now < subscription.current_period_end;
@@ -352,6 +355,34 @@ export class SubscriptionService extends ModelService<Subscription> {
       };
     } catch (error) {
       return { error, data: null };
+    }
+  }
+
+  /**
+   * Retrieves the subscription history for a specific user (owner).
+   *
+   * @param owner - The owner information containing the user's ID.
+   * @param query - Optional query parameters to filter, sort, or paginate the results.
+   * @returns A promise that resolves to the user's subscription history, or an error object if the operation fails.
+   */
+  async getUserHistory(owner: OwnerDto, query: any = {}) {
+    try {
+      const result = await this.findAll({
+        owner: owner,
+        action: 'findAll',
+        payload: {
+          ...query,
+          where: {
+            ...(query.where || {}),
+            user_id: owner.id,
+          },
+          sort: query.sort || [['created_at', 'desc']],
+        },
+      });
+
+      return result;
+    } catch (error) {
+      return { error, data: null, count: 0 };
     }
   }
 }

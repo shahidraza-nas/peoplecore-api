@@ -75,10 +75,8 @@ export class SubscriptionController {
     @Body() createCheckoutDto: CreateCheckoutDto,
   ) {
     const { error, data: session } = await this.subscriptionService.createCheckoutSession(
-      owner.id,
-      owner.email,
-      createCheckoutDto.amount || 10, // Default $10
-      createCheckoutDto.planType || 'chat_monthly',
+      owner,
+      createCheckoutDto,
     );
 
     if (error) {
@@ -99,8 +97,8 @@ export class SubscriptionController {
   @ResponseGetOne(Object)
   async getStatus(@Res() res: Response, @Owner() owner: OwnerDto) {
     try {
-      const hasAccess = await this.subscriptionService.checkChatAccess(owner.id);
-      const subscription = await this.subscriptionService.getUserSubscription(owner.id);
+      const hasAccess = await this.subscriptionService.checkChatAccess(owner);
+      const subscription = await this.subscriptionService.getUserSubscription(owner);
 
       return Result(res, {
         data: { hasAccess, subscription },
@@ -122,18 +120,7 @@ export class SubscriptionController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetAll
   ) {
-    const { error, data, count } = await this.subscriptionService.findAll({
-      owner,
-      action: 'findAll',
-      payload: {
-        ...query,
-        where: {
-          ...(query.where || {}),
-          created_by: owner.id
-        },
-        sort: [['created_at', 'desc']],
-      },
-    });
+    const { error, data, count } = await this.subscriptionService.getUserHistory(owner, query);
 
     if (error) {
       return ErrorResponse(res, { error, message: error.message });
@@ -171,7 +158,7 @@ export class SubscriptionController {
   @ApiOperation({ summary: 'Cancel active subscription' })
   async cancelSubscription(@Res() res: Response, @Owner() owner: OwnerDto) {
     try {
-      const { error, data } = await this.subscriptionService.cancelUserSubscription(owner.id);
+      const { error, data } = await this.subscriptionService.cancelUserSubscription(owner);
 
       if (error) {
         return ErrorResponse(res, { error, message: error.message });
@@ -241,22 +228,22 @@ export class SubscriptionController {
   }
 
   /**
-   * Update an entity document by using id
+   * Update an entity document by using uid
    */
-  @Put(':id')
-  @ApiOperation({ summary: `Update ${entity} using id` })
+  @Put(':uid')
+  @ApiOperation({ summary: `Update ${entity} using uid` })
   @ResponseUpdated(SubscriptionEntity)
   async update(
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Param('id') id: number,
+    @Param('uid') uid: string,
     @Body() updateSubscriptionDto: UpdateSubscriptionDto,
     @Query() query: ApiQueryUpdate,
   ) {
     const { error, data } = await this.subscriptionService.update({
       owner,
       action: 'update',
-      id: +id,
+      uid,
       body: updateSubscriptionDto,
       payload: { ...query },
     });
@@ -368,21 +355,21 @@ export class SubscriptionController {
   }
 
   /**
-   * Get an entity document by using id
+   * Get an entity document by using uid
    */
-  @Get(':id')
-  @ApiOperation({ summary: `Find ${entity} using id` })
+  @Get(':uid')
+  @ApiOperation({ summary: `Find ${entity} using uid` })
   @ResponseGetOne(SubscriptionEntity)
   async findById(
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Param('id') id: number,
+    @Param('uid') uid: string,
     @Query() query: any,
   ) {
     const { error, data } = await this.subscriptionService.findById({
       owner,
       action: 'findById',
-      id: +id,
+      uid,
       payload: { ...query },
     });
 
@@ -402,21 +389,21 @@ export class SubscriptionController {
   }
 
   /**
-   * Delete an entity document by using id
+   * Delete an entity document by using uid
    */
-  @Delete(':id')
-  @ApiOperation({ summary: `Delete ${entity} using id` })
+  @Delete(':uid')
+  @ApiOperation({ summary: `Delete ${entity} using uid` })
   @ResponseDeleted(SubscriptionEntity)
   async delete(
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Param('id') id: number,
+    @Param('uid') uid: string,
     @Query() query: any,
   ) {
     const { error, data } = await this.subscriptionService.delete({
       owner,
       action: 'delete',
-      id: +id,
+      uid,
       payload: { ...query },
     });
 
