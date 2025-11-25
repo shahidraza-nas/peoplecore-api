@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, HttpException, HttpStatus } from '@nestjs/common';
 import { SubscriptionService } from '../subscription/subscription.service';
 import { Role } from '../user/role.enum';
 
@@ -27,7 +27,11 @@ export class ChatAccessGuard implements CanActivate {
          */
         const hasAccess = await this.subscriptionService.checkChatAccess(user.id);
         if (!hasAccess) {
-            throw new ForbiddenException('Active subscription required to access chat');
+            throw new HttpException({
+                statusCode: HttpStatus.FORBIDDEN,
+                error: 'SUBSCRIPTION_REQUIRED',
+                message: 'Active subscription required to access chat features'
+            }, HttpStatus.FORBIDDEN);
         }
 
         return true;

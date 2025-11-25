@@ -126,9 +126,12 @@ export class SubscriptionController {
       owner,
       action: 'findAll',
       payload: {
-        where: { user_id: owner.id },
-        sort: [['created_at', 'desc']],
         ...query,
+        where: {
+          ...(query.where || {}),
+          created_by: owner.id
+        },
+        sort: [['created_at', 'desc']],
       },
     });
 
