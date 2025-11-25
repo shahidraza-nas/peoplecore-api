@@ -93,8 +93,8 @@ export class SubscriptionController {
   }
 
   /**
- * Check user's subscription status
- */
+    * Check user's subscription status
+    */
   @Get('status')
   @ApiOperation({ summary: 'Get current subscription status' })
   @ResponseGetOne(Object)
@@ -113,8 +113,8 @@ export class SubscriptionController {
   }
 
   /**
- * Get user's subscription history
- */
+    * Get user's subscription history
+    */
   @Get('history')
   @ApiOperation({ summary: 'Get user subscription history' })
   @ResponseGetAll(SubscriptionEntity)
@@ -136,8 +136,8 @@ export class SubscriptionController {
   }
 
   /**
- * Get subscription metrics (admin only)
- */
+    * Get subscription metrics (admin only)
+    */
   @Get('metrics')
   @ApiOperation({ summary: 'Get subscription analytics and metrics' })
   @ResponseGetOne(Object)
@@ -155,8 +155,8 @@ export class SubscriptionController {
   }
 
   /**
- * Cancel subscription
- */
+   * Cancel subscription
+   */
   @Delete('cancel')
   @ApiOperation({ summary: 'Cancel active subscription' })
   async cancelSubscription(@Res() res: Response, @Owner() owner: OwnerDto) {
