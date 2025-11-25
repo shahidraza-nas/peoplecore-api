@@ -44,23 +44,16 @@ export class SubscriptionService extends ModelService<Subscription> {
       }
 
       /**
-       * Create or retrieve Stripe customer
+       * Create or retrieve Stripe customer using StripeService helper
        */
-      const customers = await this.stripeService.stripe.customers.list({
-        email: userEmail,
-        limit: 1,
+      const customerId = await this.stripeService.createOrUpdateCustomer(userEmail, {
+        userId,
+        userUid: owner.uid,
+        name: owner.name || `${owner.first_name} ${owner.last_name}`,
+        phone: owner.phone ? `${owner.phone_code}${owner.phone}` : undefined,
+        role: owner.role,
+        description: `PeopleCore User - ${owner.role}`,
       });
-
-      let customerId: string;
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-      } else {
-        const customer = await this.stripeService.stripe.customers.create({
-          email: userEmail,
-          metadata: { userId: userId.toString() },
-        });
-        customerId = customer.id;
-      }
 
       const session = await this.stripeService.stripe.checkout.sessions.create({
         mode: 'payment', // One-time payment
@@ -83,7 +76,12 @@ export class SubscriptionService extends ModelService<Subscription> {
         cancel_url: `${frontendUrl}/subscription/cancel`,
         metadata: {
           userId: userId.toString(),
+          userUid: owner.uid,
+          userEmail: userEmail,
+          userName: owner.name || `${owner.first_name} ${owner.last_name}`,
           planType,
+          amount: amount.toString(),
+          createdAt: new Date().toISOString(),
         },
       });
 
@@ -383,6 +381,247 @@ export class SubscriptionService extends ModelService<Subscription> {
       return result;
     } catch (error) {
       return { error, data: null, count: 0 };
+    }
+  }
+
+  /**
+   * Handle Stripe webhook events
+   * Verifies signature and processes different event types
+   * @param rawBody Raw request body buffer
+   * @param signature Stripe signature from headers
+   * @returns Error object or null
+   */
+  async handleStripeWebhook(rawBody: Buffer, signature: string) {
+    const webhookSecret = this.configService.get('stripe').webhookSecret;
+
+    try {
+      /**
+       * Verify webhook signature to ensure request is from Stripe
+       */
+      const event = this.stripeService.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        webhookSecret
+      );
+
+      /**
+       * Handle different event types
+       */
+      switch (event.type) {
+        case 'checkout.session.completed':
+          await this.handleCheckoutCompleted(event.data.object);
+          break;
+
+        case 'charge.refunded':
+          await this.handleChargeRefunded(event.data.object);
+          break;
+
+        case 'charge.dispute.created':
+          await this.handleDisputeCreated(event.data.object);
+          break;
+
+        case 'payment_intent.payment_failed':
+          await this.handlePaymentFailed(event.data.object);
+          break;
+
+        default:
+          console.log(`Unhandled webhook event type: ${event.type}`);
+      }
+
+      return { error: null };
+    } catch (error) {
+      console.error('Webhook signature verification failed:', error.message);
+      return { error };
+    }
+  }
+
+  /**
+   * Handle successful checkout completion
+   * Automatically creates subscription when payment succeeds
+   * This replaces the manual processPayment endpoint for better reliability
+   * @param session Stripe checkout session object
+   */
+  private async handleCheckoutCompleted(session: any) {
+    try {
+      console.log(`Processing checkout.session.completed: ${session.id}`);
+      
+      /**
+       * Check if this session was already processed (idempotency)
+       */
+      const { data: existing } = await this.findOne({
+        owner: { id: 0 } as any,
+        action: 'findOne',
+        payload: {
+          where: { stripe_subscription_id: session.id },
+        },
+      });
+
+      if (existing) {
+        console.log(`Session ${session.id} already processed`);
+        return;
+      }
+
+      /**
+       * Verify payment was successful
+       */
+      if (session.payment_status !== 'paid') {
+        console.log(`Session ${session.id} payment not completed: ${session.payment_status}`);
+        return;
+      }
+
+      /**
+       * Validate required metadata
+       */
+      if (!session.metadata || !session.metadata.userId || !session.metadata.planType) {
+        console.log(`Session ${session.id} missing required metadata (userId or planType). This is normal for test events from 'stripe trigger'.`);
+        return;
+      }
+
+      const userId = parseInt(session.metadata.userId);
+      const planType = session.metadata.planType;
+      const amount = session.amount_total / 100;
+
+      /**
+       * Calculate subscription period (1 month)
+       */
+      const now = new Date();
+      const periodEnd = new Date(now);
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+      /**
+       * Create subscription record
+       */
+      await this.create({
+        owner: { id: userId } as any,
+        action: 'create',
+        body: {
+          user_id: userId,
+          stripe_subscription_id: session.id,
+          stripe_customer_id: session.customer as string,
+          status: SubscriptionStatus.ACTIVE,
+          plan_type: planType,
+          current_period_start: now,
+          current_period_end: periodEnd,
+          amount,
+          currency: 'usd',
+        },
+        payload: {},
+      });
+
+      console.log(`Subscription created for user ${userId} from webhook`);
+    } catch (error) {
+      console.error('Error handling checkout completed:', error.message);
+    }
+  }
+
+  /**
+   * Handle refunds initiated from Stripe dashboard
+   * Automatically cancels subscription when payment is refunded
+   * @param charge Stripe charge object
+   */
+  private async handleChargeRefunded(charge: any) {
+    try {
+      /**
+       * Find the subscription associated with this charge
+       */
+      const { data: subscription } = await this.findOne({
+        owner: { id: 0 } as any,
+        action: 'findOne',
+        payload: {
+          where: { stripe_customer_id: charge.customer },
+          sort: [['created_at', 'desc']],
+        },
+      });
+
+      if (!subscription) {
+        console.log(`No subscription found for customer ${charge.customer}`);
+        return;
+      }
+
+      /**
+       * Cancel subscription if currently active
+       */
+      if (subscription.status === SubscriptionStatus.ACTIVE) {
+        await this.update({
+          owner: { id: subscription.user_id } as any,
+          action: 'update',
+          id: subscription.id,
+          body: {
+            status: SubscriptionStatus.CANCELLED,
+            cancelled_at: new Date(),
+          },
+          payload: {},
+        });
+
+        console.log(`Subscription ${subscription.id} cancelled due to refund`);
+      }
+    } catch (error) {
+      console.error('Error handling charge refunded:', error.message);
+    }
+  }
+
+  /**
+   * Handle payment disputes (chargebacks)
+   * Logs dispute for admin review
+   * @param dispute Stripe dispute object
+   */
+  private async handleDisputeCreated(dispute: any) {
+    try {
+      console.log(`Payment dispute created: ${dispute.id}`, {
+        chargeId: dispute.charge,
+        amount: dispute.amount / 100,
+        reason: dispute.reason,
+        status: dispute.status,
+      });
+
+      /**
+       * Find subscription associated with disputed charge
+       */
+      const charge = await this.stripeService.getPaymentIntent(dispute.charge);
+      if (charge && charge.customer) {
+        const { data: subscription } = await this.findOne({
+          owner: { id: 0 } as any,
+          action: 'findOne',
+          payload: {
+            where: { stripe_customer_id: charge.customer as string },
+            sort: [['created_at', 'desc']],
+          },
+        });
+
+        // if (subscription) {
+        //   console.log(`Dispute affects subscription ${subscription.id} for user ${subscription.user_id}`);
+        //   /**
+        //    * TODO: Send admin notification email
+        //    * TODO: Flag subscription for review
+        //    * TODO: Optionally suspend access pending dispute resolution
+        //    */
+        // }
+      }
+    } catch (error) {
+      console.error('Error handling dispute created:', error.message);
+    }
+  }
+
+  /**
+   * Handle failed payment attempts
+   * Logs failure for monitoring
+   * @param paymentIntent Stripe payment intent object
+   */
+  private async handlePaymentFailed(paymentIntent: any) {
+    try {
+      console.log(`Payment failed: ${paymentIntent.id}`, {
+        customerId: paymentIntent.customer,
+        amount: paymentIntent.amount / 100,
+        failureCode: paymentIntent.last_payment_error?.code,
+        failureMessage: paymentIntent.last_payment_error?.message,
+      });
+
+      /**
+       * TODO: Send user notification about failed payment
+       * TODO: Track failed payment attempts for fraud detection
+       */
+    } catch (error) {
+      console.error('Error handling payment failed:', error.message);
     }
   }
 }

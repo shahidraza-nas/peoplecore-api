@@ -3,10 +3,12 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Post,
   Put,
   Query,
+  Req,
   Res,
 } from '@nestjs/common';
 import {
@@ -34,6 +36,7 @@ import {
 } from 'src/core/core.responses';
 import { pluralizeString, snakeCase } from 'src/core/core.utils';
 import { Owner, OwnerDto } from 'src/core/decorators/sql/owner.decorator';
+import { Public } from 'src/core/decorators/public.decorator';
 import {
   ApiQueryCountAll,
   ApiQueryCreate,
@@ -174,6 +177,7 @@ export class SubscriptionController {
   }
 
   /**
+   * NOT IN USE
    * Process payment after successful checkout
    */
   @Get('process-payment/:sessionId')
@@ -193,6 +197,69 @@ export class SubscriptionController {
       data: { subscription: data },
       message: 'Subscription activated',
     });
+  }
+
+  /**
+   * Handle Stripe webhook events
+   * This endpoint receives and processes events from Stripe
+   * Events: checkout.session.completed, charge.refunded, charge.dispute.created, payment_intent.payment_failed
+   */
+  @Post('webhook')
+  @Public()
+  @ApiOperation({ summary: 'Handle Stripe webhook events' })
+  async handleWebhook(
+    @Req() req: Request & { rawBody?: Buffer },
+    @Headers('stripe-signature') signature: string,
+    @Res() res: Response,
+  ) {
+    try {
+      /**
+       * Get raw body for signature verification
+       */
+      const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
+
+      if (!signature) {
+        return ErrorResponse(res, {
+          error: new Error('Missing stripe-signature header'),
+          message: 'Webhook signature required',
+        });
+      }
+
+      /**
+       * Process the webhook event
+       */
+      const { error } = await this.subscriptionService.handleStripeWebhook(rawBody, signature);
+
+      if (error) {
+        console.error('Webhook processing error:', error.message);
+        /**
+         * Still return 200 to prevent Stripe from retrying
+         * Log the error for investigation
+         */
+        return Result(res, {
+          data: { received: true, error: error.message },
+          message: 'Webhook received but processing failed',
+        });
+      }
+
+      /**
+       * Return 200 to acknowledge receipt
+       */
+      return Result(res, {
+        data: { received: true },
+        message: 'Webhook processed successfully',
+      });
+    } catch (error) {
+      console.error('Webhook error:', error.message);
+      /**
+       * Return 200 even on error to prevent Stripe retry loop
+       * since the error is likely unrecoverable (bad signature, etc.)
+       */
+      return Result(res, {
+        data: { received: false, error: error.message },
+        message: `Webhook Error: ${error.message}`,
+      });
+    }
   }
 
   /**
