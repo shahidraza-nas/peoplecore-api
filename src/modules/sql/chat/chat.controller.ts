@@ -337,8 +337,8 @@ export class ChatController {
     @Owner() owner: OwnerDto,
     @Param('chatUid') chatUid: string,
   ) {
-    await this.msClient.executeJob(
-      APPEVENTS.CHAT,
+    // Call service directly instead of queueing microservice job for synchronous response
+    const { error, data } = await this.chatService.readAllMessages(
       new Job({
         app: process.env.APP_ID,
         action: 'readAllMessages',
@@ -347,9 +347,16 @@ export class ChatController {
       }),
     );
 
+    if (error) {
+      return ErrorResponse(res, {
+        error,
+        message: error.message || 'Failed to mark messages as read',
+      });
+    }
+
     return Result(res, {
-      data: {},
-      message: 'Ok',
+      data: data || {},
+      message: 'Messages marked as read',
     });
   }
 
