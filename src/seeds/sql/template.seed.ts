@@ -82,7 +82,7 @@ const seed: Seed<Template> = {
       sms_body: null,
     },
     {
-      name: 'subscription-expiring',
+      name: 'subscription_expiring',
       title: 'Subscription Expiring Soon',
       send_email: true,
       email_subject: 'Your Subscription is Expiring Soon',
@@ -91,25 +91,25 @@ const seed: Seed<Template> = {
           <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
             <h2 style="color: #dc2626; margin-bottom: 20px;">⚠️ Subscription Expiring Soon</h2>
             
-            <p>Hi <strong>##name##</strong>,</p>
+            <p>Hi <strong>##TO_NAME##</strong>,</p>
             
             <p>This is a friendly reminder that your subscription will expire soon.</p>
             
             <div style="background-color: #fef2f2; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #dc2626;">
               <p style="margin: 0; font-size: 18px;"><strong>Time Remaining:</strong></p>
-              <p style="margin: 10px 0 0 0; font-size: 24px; color: #dc2626; font-weight: bold;">##daysRemaining## Days</p>
+              <p style="margin: 10px 0 0 0; font-size: 24px; color: #dc2626; font-weight: bold;">##DAYS_REMAINING## Days</p>
             </div>
             
             <div style="background-color: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
               <p style="margin: 0;"><strong>Subscription Details:</strong></p>
-              <p style="margin: 10px 0 0 0;">Plan: <strong>##planType##</strong></p>
-              <p style="margin: 5px 0 0 0;">Expiry Date: <strong>##expiryDate##</strong></p>
+              <p style="margin: 10px 0 0 0;">Plan: <strong>##PLAN_TYPE##</strong></p>
+              <p style="margin: 5px 0 0 0;">Expiry Date: <strong>##EXPIRY_DATE##</strong></p>
             </div>
             
             <p>Don't lose access to your chat features! Renew your subscription now to continue enjoying uninterrupted service.</p>
             
             <div style="margin: 30px 0; text-align: center;">
-              <a href="##renewUrl##" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+              <a href="##RENEW_URL##" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
                 Renew Subscription Now
               </a>
             </div>
@@ -134,6 +134,160 @@ const seed: Seed<Template> = {
             
             <p style="color: #9ca3af; font-size: 12px; margin-top: 20px;">
               This is an automated reminder. Please do not reply to this email.
+            </p>
+          </div>
+        </div>
+      `,
+      send_sms: false,
+      sms_body: null,
+    },
+    {
+      name: 'subscription_created',
+      title: 'Subscription Activated',
+      send_email: true,
+      email_subject: 'Welcome! Your Subscription is Active',
+      email_body: `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #16a34a; margin-bottom: 20px;">🎉 Subscription Activated!</h2>
+            
+            <p>Hi <strong>##TO_NAME##</strong>,</p>
+            
+            <p>Thank you for subscribing! Your subscription has been successfully activated.</p>
+            
+            <div style="background-color: #f0fdf4; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #16a34a;">
+              <p style="margin: 0;"><strong>Subscription Details:</strong></p>
+              <p style="margin: 10px 0 0 0;">Plan: <strong>##PLAN_TYPE##</strong></p>
+              <p style="margin: 5px 0 0 0;">Amount: <strong>##AMOUNT## ##CURRENCY##</strong></p>
+              <p style="margin: 5px 0 0 0;">Next Billing: <strong>##NEXT_BILLING_DATE##</strong></p>
+            </div>
+            
+            <p>You now have full access to all chat features. Start connecting with your team!</p>
+            
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="##CHAT_URL##" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+                Start Chatting
+              </a>
+            </div>
+            
+            <p style="color: #6b7280; font-size: 14px;">
+              Thanks,<br>
+              <strong>Team ##COMPANY_NAME##</strong>
+            </p>
+          </div>
+        </div>
+      `,
+      send_sms: false,
+      sms_body: null,
+    },
+    {
+      name: 'subscription_renewed',
+      title: 'Subscription Renewed',
+      send_email: true,
+      email_subject: 'Your Subscription Has Been Renewed',
+      email_body: `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #16a34a; margin-bottom: 20px;">✅ Subscription Renewed</h2>
+            
+            <p>Hi <strong>##TO_NAME##</strong>,</p>
+            
+            <p>Your subscription has been successfully renewed. Thank you for continuing with us!</p>
+            
+            <div style="background-color: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <p style="margin: 0;"><strong>Renewal Details:</strong></p>
+              <p style="margin: 10px 0 0 0;">Plan: <strong>##PLAN_TYPE##</strong></p>
+              <p style="margin: 5px 0 0 0;">Amount Paid: <strong>##AMOUNT## ##CURRENCY##</strong></p>
+              <p style="margin: 5px 0 0 0;">Next Billing: <strong>##NEXT_BILLING_DATE##</strong></p>
+            </div>
+            
+            <p>Your access to all features continues without interruption.</p>
+            
+            <p style="color: #6b7280; font-size: 14px;">
+              Thanks,<br>
+              <strong>Team ##COMPANY_NAME##</strong>
+            </p>
+          </div>
+        </div>
+      `,
+      send_sms: false,
+      sms_body: null,
+    },
+    {
+      name: 'subscription_cancelled',
+      title: 'Subscription Cancelled',
+      send_email: true,
+      email_subject: 'Your Subscription Has Been Cancelled',
+      email_body: `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #dc2626; margin-bottom: 20px;">Subscription Cancelled</h2>
+            
+            <p>Hi <strong>##TO_NAME##</strong>,</p>
+            
+            <p>Your subscription has been cancelled as requested.</p>
+            
+            <div style="background-color: #fef2f2; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #dc2626;">
+              <p style="margin: 0;"><strong>Important:</strong></p>
+              <p style="margin: 10px 0 0 0;">You will retain access until: <strong>##PERIOD_END##</strong></p>
+            </div>
+            
+            <p>After this date, your subscription will end and you'll lose access to chat features.</p>
+            
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="##REACTIVATE_URL##" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+                Reactivate Subscription
+              </a>
+            </div>
+            
+            <p>We're sorry to see you go. If you change your mind, you can reactivate your subscription anytime.</p>
+            
+            <p style="color: #6b7280; font-size: 14px;">
+              Thanks,<br>
+              <strong>Team ##COMPANY_NAME##</strong>
+            </p>
+          </div>
+        </div>
+      `,
+      send_sms: false,
+      sms_body: null,
+    },
+    {
+      name: 'subscription_payment_failed',
+      title: 'Subscription Payment Failed',
+      send_email: true,
+      email_subject: 'Action Required: Subscription Payment Failed',
+      email_body: `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #dc2626; margin-bottom: 20px;">⚠️ Payment Failed</h2>
+            
+            <p>Hi <strong>##TO_NAME##</strong>,</p>
+            
+            <p>We were unable to process your subscription payment.</p>
+            
+            <div style="background-color: #fef2f2; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #dc2626;">
+              <p style="margin: 0;"><strong>Action Required:</strong></p>
+              <p style="margin: 10px 0 0 0;">Please update your payment method to avoid service interruption.</p>
+            </div>
+            
+            <div style="background-color: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <p style="margin: 0;"><strong>Payment Details:</strong></p>
+              <p style="margin: 10px 0 0 0;">Amount: <strong>##AMOUNT## ##CURRENCY##</strong></p>
+              <p style="margin: 5px 0 0 0;">Attempt: <strong>##ATTEMPT_COUNT##</strong></p>
+            </div>
+            
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="##UPDATE_PAYMENT_URL##" style="display: inline-block; background-color: #dc2626; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+                Update Payment Method
+              </a>
+            </div>
+            
+            <p>If payment continues to fail, your subscription may be cancelled.</p>
+            
+            <p style="color: #6b7280; font-size: 14px;">
+              Thanks,<br>
+              <strong>Team ##COMPANY_NAME##</strong>
             </p>
           </div>
         </div>

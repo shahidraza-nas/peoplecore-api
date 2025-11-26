@@ -90,7 +90,8 @@ export class UserService extends ModelService<User> {
 
       this.msClient
         .executeJob(
-          'controller.notification',
+          APPEVENTS.NOTIFICATION,
+          // 'controller.notification',
           new Job({
             action: 'send',
             app: process.env.APP_ID,

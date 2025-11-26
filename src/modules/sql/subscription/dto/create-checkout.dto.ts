@@ -1,19 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class CreateCheckoutDto {
     @ApiProperty({
-        description: 'Payment amount in dollars',
-        example: 10,
-        default: 10
-    })
-    @IsNumber()
-    @IsOptional()
-    amount?: number;
-
-    @ApiProperty({
-        description: 'Plan type',
+        description: 'Subscription plan type',
         example: 'chat_monthly',
+        enum: ['chat_monthly', 'chat_yearly'],
         default: 'chat_monthly'
     })
     @IsString()

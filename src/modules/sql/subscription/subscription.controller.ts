@@ -67,29 +67,67 @@ export class SubscriptionController {
    */
 
   /**
-   * Create Stripe checkout session for one-time payment
+   * Create Stripe checkout session for recurring subscription
+   * Redirects user to Stripe Checkout page to subscribe (monthly or yearly)
+   * Subscription is created automatically via webhook (customer.subscription.created)
    */
   @Post('create-checkout-session')
-  @ApiOperation({ summary: 'Create checkout session for subscription payment' })
+  @ApiOperation({ summary: 'Create checkout session for recurring subscription' })
   @ResponseCreated(Object)
   async createCheckoutSession(
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Body() createCheckoutDto: CreateCheckoutDto,
   ) {
-    const { error, data: session } = await this.subscriptionService.createCheckoutSession(
-      owner,
-      createCheckoutDto,
-    );
+    try {
+      console.log('[Checkout Request]', {
+        userId: owner.id,
+        email: owner.email,
+        dto: createCheckoutDto,
+      });
 
-    if (error) {
-      return ErrorResponse(res, { error, message: error.message });
+      const { error, data: session } = await this.subscriptionService.createCheckoutSession(
+        owner,
+        createCheckoutDto,
+      );
+
+      if (error) {
+        console.error('[Checkout Error]', {
+          message: error.message,
+          type: error.constructor.name,
+          stack: error.stack?.split('\n')[0],
+        });
+        return ErrorResponse(res, { error, message: error.message });
+      }
+
+      if (!session || !session.url || !session.id) {
+        console.error('[Checkout Error] Invalid session object:', session);
+        return ErrorResponse(res, {
+          error: new Error('Invalid session returned from Stripe'),
+          message: 'Failed to create checkout session - invalid response',
+        });
+      }
+
+      console.log('[Checkout Success]', {
+        sessionId: session.id,
+        url: session.url.substring(0, 60) + '...',
+      });
+
+      return Created(res, {
+        data: { sessionUrl: session.url, sessionId: session.id },
+        message: 'Checkout session created',
+      });
+    } catch (error) {
+      console.error('[Checkout Fatal Error]', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+      });
+      return ErrorResponse(res, {
+        error,
+        message: error.message || 'Unexpected error creating checkout session',
+      });
     }
-
-    return Created(res, {
-      data: { sessionUrl: session.url, sessionId: session.id },
-      message: 'Checkout session created',
-    });
   }
 
   /**
@@ -103,8 +141,26 @@ export class SubscriptionController {
       const hasAccess = await this.subscriptionService.checkChatAccess(owner);
       const subscription = await this.subscriptionService.getUserSubscription(owner);
 
+      /**
+       * Structured response with computed metadata
+       */
+      const responseData = {
+        subscription: subscription || null,
+        access: {
+          hasAccess,
+          isActive: subscription?.status === 'active' && !subscription?.cancel_at_period_end,
+          isCancelling: subscription?.cancel_at_period_end === true,
+        },
+        billing: subscription ? {
+          status: subscription.status,
+          currentPeriodEnd: subscription.current_period_end,
+          cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+          cancelledAt: subscription.cancelled_at || null,
+        } : null,
+      };
+
       return Result(res, {
-        data: { hasAccess, subscription },
+        data: responseData,
         message: 'Ok',
       });
     } catch (error) {
@@ -156,20 +212,36 @@ export class SubscriptionController {
 
   /**
    * Cancel subscription
+   * Query params:
+   * - immediate: true = cancel immediately, false = cancel at period end (default)
    */
   @Delete('cancel')
   @ApiOperation({ summary: 'Cancel active subscription' })
-  async cancelSubscription(@Res() res: Response, @Owner() owner: OwnerDto) {
+  async cancelSubscription(
+    @Res() res: Response,
+    @Owner() owner: OwnerDto,
+    @Query('immediate') immediate?: string,
+  ) {
+    console.log('[Cancel Request] immediate query param:', immediate, 'type:', typeof immediate);
     try {
-      const { error, data } = await this.subscriptionService.cancelUserSubscription(owner);
+      const cancelImmediately = immediate === 'true';
+      console.log('[Cancel] cancelImmediately:', cancelImmediately);
+      const { error, data } = await this.subscriptionService.cancelUserSubscription(
+        owner,
+        cancelImmediately,
+      );
 
       if (error) {
         return ErrorResponse(res, { error, message: error.message });
       }
 
+      const message = cancelImmediately
+        ? 'Subscription cancelled immediately'
+        : 'Subscription will be cancelled at the end of billing period';
+
       return Result(res, {
         data: { subscription: data },
-        message: 'Subscription cancelled',
+        message,
       });
     } catch (error) {
       return ErrorResponse(res, { error, message: error.message });
@@ -177,32 +249,18 @@ export class SubscriptionController {
   }
 
   /**
-   * NOT IN USE
-   * Process payment after successful checkout
-   */
-  @Get('process-payment/:sessionId')
-  @ApiOperation({ summary: 'Process payment and activate subscription' })
-  async processPayment(
-    @Res() res: Response,
-    @Owner() owner: OwnerDto,
-    @Param('sessionId') sessionId: string,
-  ) {
-    const { error, data } = await this.subscriptionService.processPayment(sessionId);
-
-    if (error) {
-      return ErrorResponse(res, { error, message: error.message });
-    }
-
-    return Result(res, {
-      data: { subscription: data },
-      message: 'Subscription activated',
-    });
-  }
-
-  /**
    * Handle Stripe webhook events
    * This endpoint receives and processes events from Stripe
-   * Events: checkout.session.completed, charge.refunded, charge.dispute.created, payment_intent.payment_failed
+   * 
+   * Supported Events:
+   * - customer.subscription.created: New subscription created
+   * - customer.subscription.updated: Subscription status changed (renewals, cancellations, plan changes)
+   * - customer.subscription.deleted: Subscription permanently deleted
+   * - invoice.paid: Successful recurring payment
+   * - invoice.payment_failed: Failed recurring payment attempt
+   * - charge.refunded: Payment refunded from Stripe dashboard
+   * - charge.dispute.created: Customer disputed payment (chargeback)
+   * - payment_intent.payment_failed: Payment intent failed
    */
   @Post('webhook')
   @Public()

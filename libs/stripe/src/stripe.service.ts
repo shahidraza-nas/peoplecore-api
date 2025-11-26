@@ -298,4 +298,20 @@ export class StripeService {
       throw error;
     }
   }
+
+  /**
+   * Get subscription details by ID
+   * @param subscriptionId Stripe subscription ID
+   * @returns Subscription object or null
+   */
+  async getSubscription(subscriptionId: string): Promise<Stripe.Subscription | null> {
+    try {
+      return await this.stripe.subscriptions.retrieve(subscriptionId, {
+        expand: ['latest_invoice', 'customer', 'default_payment_method']
+      });
+    } catch (error) {
+      console.error('Error retrieving subscription:', error);
+      return null;
+    }
+  }
 }

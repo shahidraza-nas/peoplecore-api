@@ -7,6 +7,7 @@ import { uuid } from 'src/core/core.utils';
 
 export enum SubscriptionStatus {
   ACTIVE = 'active',
+  TRIALING = 'trialing',
   INACTIVE = 'inactive',
   CANCELLED = 'cancelled',
   EXPIRED = 'expired',
@@ -24,6 +25,12 @@ export class Subscription extends SqlModel {
   @ApiProperty({ description: 'User ID' })
   declare user_id: number;
 
+  @Column
+  @ApiProperty({ description: 'User UID for reference' })
+  @IsOptional()
+  @IsString()
+  declare user_uid: string;
+
   @BelongsTo(() => User)
   user: User;
 
@@ -38,6 +45,37 @@ export class Subscription extends SqlModel {
   @ApiProperty({ description: 'Stripe Customer ID' })
   @IsString()
   declare stripe_customer_id: string;
+
+  @Column
+  @ApiProperty({ description: 'Stripe Price ID (monthly or yearly plan)' })
+  @IsOptional()
+  @IsString()
+  declare stripe_price_id: string;
+
+  @Column({ allowNull: true })
+  @ApiProperty({ description: 'Latest Stripe Invoice ID', required: false })
+  @IsOptional()
+  @IsString()
+  declare stripe_invoice_id: string;
+
+  @Column({ defaultValue: false })
+  @ApiProperty({ description: 'User cancelled but subscription remains active until period ends', required: false })
+  @IsOptional()
+  declare cancel_at_period_end: boolean;
+
+  @Column({ allowNull: true })
+  @ApiProperty({ description: 'Next billing date for recurring subscription', required: false })
+  @IsOptional()
+  declare next_billing_date: Date;
+
+  @Column({ defaultValue: 'active' })
+  @ApiProperty({ 
+    description: 'Stripe billing status: active, past_due, canceled, trialing, unpaid, incomplete',
+    required: false 
+  })
+  @IsOptional()
+  @IsString()
+  declare billing_status: string;
 
   @Column({
     type: DataType.ENUM(...Object.values(SubscriptionStatus)),
