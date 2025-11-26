@@ -249,6 +249,32 @@ export class SubscriptionController {
   }
 
   /**
+   * Reactivate a cancelled subscription
+   * Removes cancel_at_period_end flag in Stripe
+   */
+  @Post('reactivate')
+  @ApiOperation({ summary: 'Reactivate cancelled subscription' })
+  async reactivateSubscription(
+    @Res() res: Response,
+    @Owner() owner: OwnerDto,
+  ) {
+    try {
+      const { error, data } = await this.subscriptionService.reactivateUserSubscription(owner);
+
+      if (error) {
+        return ErrorResponse(res, { error, message: error.message });
+      }
+
+      return Result(res, {
+        data: { subscription: data },
+        message: 'Subscription reactivated successfully',
+      });
+    } catch (error) {
+      return ErrorResponse(res, { error, message: error.message });
+    }
+  }
+
+  /**
    * Handle Stripe webhook events
    * This endpoint receives and processes events from Stripe
    * 

@@ -497,6 +497,57 @@ export class SubscriptionService extends ModelService<Subscription> {
   }
 
   /**
+   * Reactivate a cancelled subscription
+   * Removes cancel_at_period_end flag from Stripe subscription
+   */
+  async reactivateUserSubscription(owner: OwnerDto) {
+    const subscription = await this.getUserSubscription(owner);
+
+    if (!subscription) {
+      return { error: new Error('No subscription found') };
+    }
+
+    if (!subscription.cancel_at_period_end) {
+      return { error: new Error('Subscription is not scheduled for cancellation') };
+    }
+
+    if (!subscription.stripe_subscription_id) {
+      return {
+        error: new Error('Invalid subscription - missing Stripe subscription ID')
+      };
+    }
+
+    try {
+      /**
+       * Remove cancellation flag in Stripe
+       */
+      await this.stripeService.stripe.subscriptions.update(
+        subscription.stripe_subscription_id,
+        { cancel_at_period_end: false }
+      );
+
+      console.log(`Subscription ${subscription.stripe_subscription_id} reactivated`);
+
+      /**
+       * Update database
+       */
+      return this.update({
+        owner,
+        action: 'update',
+        id: subscription.id,
+        body: {
+          cancel_at_period_end: false,
+          cancelled_at: null,
+        },
+        payload: {},
+      });
+    } catch (error) {
+      console.error('Failed to reactivate subscription:', error.message);
+      return { error: new Error('Failed to reactivate subscription. Please try again.') };
+    }
+  }
+
+  /**
    * Determines whether a user's subscription is currently active.
    *
    * @param owner - The owner information containing the user's ID.
