@@ -274,23 +274,22 @@ export class SubscriptionController {
     }
   }
 
-  /**
-   * Handle Stripe webhook events
-   * This endpoint receives and processes events from Stripe
-   * 
-   * Supported Events:
-   * - customer.subscription.created: New subscription created
-   * - customer.subscription.updated: Subscription status changed (renewals, cancellations, plan changes)
-   * - customer.subscription.deleted: Subscription permanently deleted
-   * - invoice.paid: Successful recurring payment
-   * - invoice.payment_failed: Failed recurring payment attempt
-   * - charge.refunded: Payment refunded from Stripe dashboard
-   * - charge.dispute.created: Customer disputed payment (chargeback)
-   * - payment_intent.payment_failed: Payment intent failed
-   */
   @Post('webhook')
   @Public()
   @ApiOperation({ summary: 'Handle Stripe webhook events' })
+  /**
+   * Handles incoming Stripe webhook events.
+   *
+   * This method verifies the Stripe signature, processes the webhook event,
+   * and returns a 200 response to acknowledge receipt. If the signature is missing
+   * or processing fails, it logs the error and still returns 200 to prevent Stripe
+   * from retrying the webhook. Errors are included in the response data for investigation.
+   *
+   * @param req - The incoming request object, including the raw body for signature verification.
+   * @param signature - The Stripe signature from the 'stripe-signature' header.
+   * @param res - The response object used to send the acknowledgment back to Stripe.
+   * @returns A response indicating whether the webhook was received and processed successfully.
+   */
   async handleWebhook(
     @Req() req: Request & { rawBody?: Buffer },
     @Headers('stripe-signature') signature: string,
