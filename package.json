@@ -80,7 +80,8 @@
     "sequelize-typescript": "^2.1.6",
     "socket.io": "^4.8.1",
     "twilio": "^5.7.1",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "stripe": "^18.3.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.7",
@@ -151,7 +152,8 @@
       "^@core/email(|/.*)$": "<rootDir>/libs/email/src/$1",
       "^@core/firebase(|/.*)$": "<rootDir>/libs/firebase/src/$1",
       "^@core/geocoder(|/.*)$": "<rootDir>/libs/geocoder/src/$1",
-      "^@core/twilio(|/.*)$": "<rootDir>/libs/twilio/src/$1"
+      "^@core/twilio(|/.*)$": "<rootDir>/libs/twilio/src/$1",
+      "^@core/stripe(|/.*)$": "<rootDir>/libs/stripe/src$1"
     }
   },
   "sncMetadata": {

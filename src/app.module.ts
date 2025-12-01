@@ -2,6 +2,7 @@ import { EmailModule } from '@core/email';
 import { MongoModule } from '@core/mongo';
 import { SqlModule } from '@core/sql';
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { AppController } from './app.controller';
 import { AppGateway } from './app.gateway';
@@ -12,10 +13,12 @@ import { FirebaseModule } from '@core/firebase';
 import { GeocoderModule } from '@core/geocoder';
 import { TwilioModule } from '@core/twilio';
 import { SocketEventModule } from './modules/socket-event/socket-event.module';
+import { StripeModule } from "@core/stripe";
 
 @Module({
   imports: [
     CoreModule,
+    ScheduleModule.forRoot(),
     MongoModule.root({ seeder: true }),
     SqlModule.root({ seeder: true }),
     EmailModule,
@@ -24,6 +27,7 @@ import { SocketEventModule } from './modules/socket-event/socket-event.module';
     GeocoderModule,
     TwilioModule,
     SocketEventModule,
+    StripeModule,
   ],
   controllers: [AppController],
   providers: [AppService, AppGateway],

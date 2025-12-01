@@ -133,8 +133,6 @@ export class NewsfeedController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetAll,
   ) {
-    console.log(query);
-    console.log(owner);
     const { offset, limit, search, select, where, populate, scope, sort } = query;
     const { error, data, offset: resOffset, limit: resLimit, count } =
       await this.newsfeedService.findAll({

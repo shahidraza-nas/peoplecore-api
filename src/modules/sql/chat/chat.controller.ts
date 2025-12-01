@@ -9,6 +9,7 @@ import {
   Query,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
 import {
@@ -17,6 +18,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { ChatAccessGuard } from './chat.guard';
 import { Response } from 'express';
 import {
   ApiErrorResponses,
@@ -59,6 +61,7 @@ const entity = snakeCase(Chat.name);
 @ApiBearerAuth()
 @ApiErrorResponses()
 @ApiExtraModels(Chat)
+@UseGuards(ChatAccessGuard)
 @Controller(entity)
 export class ChatController {
   constructor(
@@ -334,8 +337,8 @@ export class ChatController {
     @Owner() owner: OwnerDto,
     @Param('chatUid') chatUid: string,
   ) {
-    await this.msClient.executeJob(
-      APPEVENTS.CHAT,
+    // Call service directly instead of queueing microservice job for synchronous response
+    const { error, data } = await this.chatService.readAllMessages(
       new Job({
         app: process.env.APP_ID,
         action: 'readAllMessages',
@@ -344,9 +347,16 @@ export class ChatController {
       }),
     );
 
+    if (error) {
+      return ErrorResponse(res, {
+        error,
+        message: error.message || 'Failed to mark messages as read',
+      });
+    }
+
     return Result(res, {
-      data: {},
-      message: 'Ok',
+      data: data || {},
+      message: 'Messages marked as read',
     });
   }
 

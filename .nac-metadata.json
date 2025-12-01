@@ -6,6 +6,7 @@
     "email",
     "twilio",
     "geocoder",
-    "firebase"
+    "firebase",
+    "stripe"
   ]
 }

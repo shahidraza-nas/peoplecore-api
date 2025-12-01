@@ -44,6 +44,12 @@ async function bootstrap() {
     SwaggerModule.setup('/docs', app, document, SwaggerOptions);
   }
   /* Body parsers */
+  // Stripe webhook needs raw body for signature verification
+  app.use('/subscription/webhook', json({ 
+    verify: (req: any, res, buf) => {
+      req.rawBody = buf;
+    }
+  }));
   app.use(json({ limit: '5mb' }));
   app.use(urlencoded({ extended: true, limit: '5mb' }));
   /* Validation */
