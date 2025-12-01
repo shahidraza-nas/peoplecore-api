@@ -7,6 +7,7 @@ import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 import { Job } from 'src/core/core.job';
 import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
 import { APPEVENTS } from 'src/constants';
+import { CreateCheckoutDto } from './dto/create-checkout.dto';
 
 @Injectable()
 export class SubscriptionService extends ModelService<Subscription> {
@@ -262,7 +263,7 @@ export class SubscriptionService extends ModelService<Subscription> {
    */
   async createCheckoutSession(
     owner: OwnerDto,
-    createCheckoutDto: any,
+    createCheckoutDto: CreateCheckoutDto,
   ) {
     const userId = owner.id;
     const userEmail = owner.email;

@@ -80,11 +80,11 @@ export class SubscriptionController {
     @Body() createCheckoutDto: CreateCheckoutDto,
   ) {
     try {
-      console.log('[Checkout Request]', {
-        userId: owner.id,
-        email: owner.email,
-        dto: createCheckoutDto,
-      });
+      // console.log('[Checkout Request]', {
+      //   userId: owner.id,
+      //   email: owner.email,
+      //   dto: createCheckoutDto,
+      // });
 
       const { error, data: session } = await this.subscriptionService.createCheckoutSession(
         owner,
@@ -108,10 +108,10 @@ export class SubscriptionController {
         });
       }
 
-      console.log('[Checkout Success]', {
-        sessionId: session.id,
-        url: session.url.substring(0, 60) + '...',
-      });
+      // console.log('[Checkout Success]', {
+      //   sessionId: session.id,
+      //   url: session.url.substring(0, 60) + '...',
+      // });
 
       return Created(res, {
         data: { sessionUrl: session.url, sessionId: session.id },
