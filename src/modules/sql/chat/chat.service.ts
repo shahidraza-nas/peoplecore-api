@@ -2,8 +2,6 @@ import { ModelService, SearchFields, SqlService } from '@core/sql';
 import { Inject, Injectable, NotFoundException, forwardRef } from '@nestjs/common';
 import { Chat } from './entities/chat.entity';
 import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
-import { GetChatsQueryDto } from './dto/get-chats-query.dto';
-import { GetMessagesQueryDto } from './dto/get-messages-query.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { Op, Sequelize } from 'sequelize';
 import { UserService } from '../user/user.service';
@@ -11,6 +9,8 @@ import { ChatMessageService } from '../chat-message/chat-message.service';
 import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
 import { Job } from 'src/core/core.job';
 import { APPEVENTS } from 'src/constants';
+import { GetChatsQueryDto } from './dto/get-chats-query.dto';
+import { GetMessagesQueryDto } from './dto/get-messages-query.dto';
 
 @Injectable()
 export class ChatService extends ModelService<Chat> {
@@ -367,8 +367,8 @@ export class ChatService extends ModelService<Chat> {
         },
       });
 
-      const otherUserId = chat.getDataValue('user1Id') === owner.id 
-        ? chat.getDataValue('user2Id') 
+      const otherUserId = chat.getDataValue('user1Id') === owner.id
+        ? chat.getDataValue('user2Id')
         : chat.getDataValue('user1Id');
 
       // Emit event to the other user (sender) that their messages were read
