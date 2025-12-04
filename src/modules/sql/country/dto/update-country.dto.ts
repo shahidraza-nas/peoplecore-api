@@ -1,6 +1,6 @@
-import { OmitType, PartialType } from '@nestjs/swagger';
+import { PartialType, PickType } from '@nestjs/swagger';
 import { Country } from '../entities/country.entity';
 
 export class UpdateCountryDto extends PartialType(
-  OmitType(Country, [] as const),
+  PickType(Country, ['name', 'code'] as const),
 ) {}
