@@ -1,6 +1,13 @@
-import { OmitType, PartialType } from '@nestjs/swagger';
+import { PartialType, PickType } from '@nestjs/swagger';
 import { Newsfeed } from '../entities/newsfeed.entity';
 
 export class UpdateNewsfeedDto extends PartialType(
-  OmitType(Newsfeed, [] as const),
-) {}
+  PickType(Newsfeed, [
+    'title',
+    'content',
+    'pinned',
+    'publishDate',
+    'published',
+    'tags',
+  ] as const),
+) { }

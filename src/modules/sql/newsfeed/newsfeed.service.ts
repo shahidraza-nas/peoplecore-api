@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { Role } from 'src/modules/sql/user/role.enum';
 import { Newsfeed } from './entities/newsfeed.entity';
 import { User } from '../user/entities/user.entity';
+import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 
 @Injectable()
 export class NewsfeedService extends ModelService<Newsfeed> {
@@ -14,6 +15,122 @@ export class NewsfeedService extends ModelService<Newsfeed> {
 
   constructor(db: SqlService<Newsfeed>) {
     super(db);
+  }
+
+  /**
+   * Create a new newsfeed
+   */
+  async createNewsfeed(owner: any, body: any) {
+    return this.create({
+      owner,
+      action: 'create',
+      body,
+    });
+  }
+
+  /**
+   * Find all newsfeeds with explicit query parameters
+   */
+  async findAllNewsfeeds(owner: OwnerDto, query: any) {
+    const { offset, limit, search, sort } = query;
+    return this.findAll({
+      owner,
+      action: 'findAll',
+      payload: {
+        offset,
+        limit,
+        search,
+        sort,
+        populate: ['author']
+      },
+    });
+  }
+
+  /**
+   * Get newsfeeds created by logged-in user
+   */
+  async getMyNewsfeeds(owner: any, query: any) {
+    const { offset, limit, search, sort } = query;
+    return this.findAll({
+      owner,
+      action: 'findAll',
+      payload: {
+        offset,
+        limit,
+        search,
+        where: {
+          created_by: owner.id,
+        },
+        populate: ['author'],
+        sort,
+      },
+    });
+  }
+
+  /**
+   * Count all newsfeeds
+   */
+  async countAllNewsfeeds(owner: OwnerDto) {
+    return this.getCount({
+      owner,
+      action: 'getCount',
+      payload: {},
+    });
+  }
+
+  /**
+   * Find one newsfeed with explicit query parameters
+   */
+  async findOneNewsfeed(owner: OwnerDto, query: any) {
+    const { select } = query;
+    return this.findOne({
+      owner,
+      action: 'findOne',
+      payload: {
+        select,
+      },
+    });
+  }
+
+  /**
+   * Find newsfeed by ID with explicit query parameters
+   */
+  async findNewsfeedById(owner: any, id: number, query: any) {
+    const { select } = query;
+    return this.getNewsfeedById({
+      owner,
+      action: 'findById',
+      id,
+      payload: {
+        select,
+      },
+    });
+  }
+
+  /**
+   * Update newsfeed by ID
+   */
+  async updateNewsfeedById(owner: any, id: number, body: any) {
+    return this.update({
+      owner,
+      id,
+      body,
+    });
+  }
+
+  /**
+   * Delete newsfeed by UID
+   */
+  async deleteNewsfeedByUid(owner: any, uid: string, query: any) {
+    const { permanent } = query;
+    return this.delete({
+      owner,
+      action: 'delete',
+      uid,
+      payload: {
+        permanent,
+      },
+    });
   }
 
   /**
@@ -135,9 +252,9 @@ export class NewsfeedService extends ModelService<Newsfeed> {
     }
     const { data: existingNewsfeed, error: findError } = await this.findOne({
       ...job,
-      payload: { 
+      payload: {
         where: { uid: job.uid },
-        select: ['id', 'created_by'] 
+        select: ['id', 'created_by']
       }
     });
 

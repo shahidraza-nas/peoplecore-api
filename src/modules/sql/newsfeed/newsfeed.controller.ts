@@ -68,14 +68,11 @@ export class NewsfeedController {
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Body() createNewsfeedDto: CreateNewsfeedDto,
-    @Query() query: ApiQueryCreate,
   ) {
-    const { error, data } = await this.newsfeedService.create({
+    const { error, data } = await this.newsfeedService.createNewsfeed(
       owner,
-      action: 'create',
-      body: createNewsfeedDto,
-      payload: { ...query },
-    });
+      createNewsfeedDto,
+    );
 
     if (error) {
       return ErrorResponse(res, {
@@ -97,15 +94,12 @@ export class NewsfeedController {
     @Owner() owner: OwnerDto,
     @Param('id') id: number,
     @Body() updateNewsfeedDto: UpdateNewsfeedDto,
-    @Query() query: ApiQueryUpdate,
   ) {
-    const { error, data } = await this.newsfeedService.update({
+    const { error, data } = await this.newsfeedService.updateNewsfeedById(
       owner,
-      action: 'update',
-      id: +id,
-      body: updateNewsfeedDto,
-      payload: { ...query },
-    });
+      +id,
+      updateNewsfeedDto,
+    );
 
     if (error) {
       if (error instanceof NotFoundError) {
@@ -133,22 +127,8 @@ export class NewsfeedController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetAll,
   ) {
-    const { offset, limit, search, select, where, populate, scope, sort } = query;
     const { error, data, offset: resOffset, limit: resLimit, count } =
-      await this.newsfeedService.findAll({
-        owner,
-        action: 'findAll',
-        payload: {
-          offset,
-          limit,
-          search,
-          select,
-          where,
-          populate,
-          scope,
-          sort,
-        },
-      });
+      await this.newsfeedService.findAllNewsfeeds(owner, query);
 
     if (error) {
       return ErrorResponse(res, {
@@ -172,22 +152,8 @@ export class NewsfeedController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetAll,
   ) {
-    const { offset, limit, search, select, where, populate, scope, sort } = query;
     const { error, data, offset: resOffset, limit: resLimit, count } =
-      await this.newsfeedService.findAll({
-        owner,
-        action: 'findAll',
-        payload: {
-          offset,
-          limit,
-          search,
-          select,
-          where: { ...where, created_by: owner.id },
-          populate,
-          scope,
-          sort,
-        },
-      });
+      await this.newsfeedService.getMyNewsfeeds(owner, query);
 
     if (error) {
       return ErrorResponse(res, {
@@ -210,13 +176,10 @@ export class NewsfeedController {
   async countAll(
     @Res() res: Response,
     @Owner() owner: OwnerDto,
-    @Query() query: ApiQueryCountAll,
   ) {
-    const { error, count } = await this.newsfeedService.getCount({
+    const { error, count } = await this.newsfeedService.countAllNewsfeeds(
       owner,
-      action: 'getCount',
-      payload: { ...query },
-    });
+    );
 
     if (error) {
       return ErrorResponse(res, {
@@ -241,11 +204,10 @@ export class NewsfeedController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetOne,
   ) {
-    const { error, data } = await this.newsfeedService.findOne({
+    const { error, data } = await this.newsfeedService.findOneNewsfeed(
       owner,
-      action: 'findOne',
-      payload: { ...query },
-    });
+      query,
+    );
 
     if (error) {
       if (error instanceof NotFoundError) {
@@ -274,13 +236,11 @@ export class NewsfeedController {
     @Param('id') id: number,
     @Query() query: ApiQueryGetById,
   ) {
-    const { select, populate, scope } = query;
-    const { error, data } = await this.newsfeedService.getNewsfeedById({
+    const { error, data } = await this.newsfeedService.findNewsfeedById(
       owner,
-      action: 'findById',
-      id: +id,
-      payload: { select, populate, scope },
-    });
+      +id,
+      query,
+    );
 
     if (error) {
       if (error instanceof NotFoundError) {
@@ -309,12 +269,11 @@ export class NewsfeedController {
     @Param('uid') uid: string,
     @Query() query: ApiQueryDelete,
   ) {
-    const { error, data } = await this.newsfeedService.delete({
+    const { error, data } = await this.newsfeedService.deleteNewsfeedByUid(
       owner,
-      action: 'delete',
       uid,
-      payload: { ...query },
-    });
+      query,
+    );
 
     if (error) {
       if (error instanceof NotFoundError) {
