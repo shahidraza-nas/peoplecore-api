@@ -1,6 +1,6 @@
-import { OmitType, PartialType } from '@nestjs/swagger';
+import { PartialType, PickType } from '@nestjs/swagger';
 import { Message } from '../entities/message.entity';
 
 export class UpdateMessageDto extends PartialType(
-  OmitType(Message, [] as const),
+  PickType(Message, ['content', 'isRead'] as const),
 ) {}

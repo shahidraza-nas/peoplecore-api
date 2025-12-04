@@ -1,4 +1,9 @@
-import { OmitType } from '@nestjs/swagger';
+import { PickType } from '@nestjs/swagger';
 import { Page } from '../entities/page.entity';
 
-export class CreatePageDto extends OmitType(Page, ['active'] as const) {}
+export class CreatePageDto extends PickType(Page, [
+  'name',
+  'title',
+  'content',
+  'allow_html',
+] as const) {}

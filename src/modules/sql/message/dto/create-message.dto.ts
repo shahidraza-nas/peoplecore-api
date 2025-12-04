@@ -1,4 +1,9 @@
-import { OmitType } from '@nestjs/swagger';
+import { PickType } from '@nestjs/swagger';
 import { Message } from '../entities/message.entity';
 
-export class CreateMessageDto extends OmitType(Message, ['active'] as const) {}
+export class CreateMessageDto extends PickType(Message, [
+  'channelId',
+  'userId',
+  'content',
+  'isRead',
+] as const) {}
