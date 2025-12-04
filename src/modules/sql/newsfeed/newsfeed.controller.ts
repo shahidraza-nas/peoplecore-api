@@ -152,7 +152,7 @@ export class NewsfeedController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetAll,
   ) {
-    const { error, data, offset: resOffset, limit: resLimit, count } =
+    const { error, data, offset, limit, count } =
       await this.newsfeedService.getMyNewsfeeds(owner, query);
 
     if (error) {
@@ -162,7 +162,7 @@ export class NewsfeedController {
       });
     }
     return Result(res, {
-      data: { [pluralizeString(entity)]: data, offset: resOffset, limit: resLimit, count },
+      data: { [pluralizeString(entity)]: data, offset, limit, count },
       message: 'Ok',
     });
   }
