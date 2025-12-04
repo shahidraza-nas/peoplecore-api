@@ -67,11 +67,12 @@ export class AppGateway
     client: AuthenticatedSocket,
     data: SendMessageDto,
   ) {
-    this.logger.log(`Received message from: USER_${client.auth?.id}`);
+    this.logger.log(`Message from USER_${client.auth?.id}`);
+    
     await this.msClient.executeJob(
       APPEVENTS.MESSAGE,
       new Job({
-        action: 'sendMessage',
+        action: 'validateMessageAndSave',
         app: process.env.APP_ID,
         owner: client.auth,
         payload: data,
@@ -82,7 +83,7 @@ export class AppGateway
   @UseInterceptors(RedisPropagatorInterceptor)
   @SubscribeMessage('user.typing')
   async handleTypingEvent(client: AuthenticatedSocket, data: any) {
-    this.logger.log(`Typing from USER_${client.auth?.id} to USER_${data.toUserId}, isTyping: ${data.isTyping}`);
+    // this.logger.log(`Typing from USER_${client.auth?.id} to USER_${data.toUserId}, isTyping: ${data.isTyping}`);
     await this.msClient.executeJob(
       APPEVENTS.SOCKET,
       new Job({

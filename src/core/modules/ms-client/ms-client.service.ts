@@ -13,8 +13,6 @@ export class MsClientService {
 
   async executeJob(queue: string, job: Job): Promise<JobResponse> {
     try {
-      console.log(queue)
-      // console.log(job)
       if (!(job instanceof Job)) {
         job = new Job(job);
       }
@@ -37,6 +35,10 @@ export class MsClientService {
 
   async jobDone(job: Job, response: JobResponse): Promise<void> {
     try {
+      if (!response) {
+        console.warn('jobDone called with undefined response');
+        response = { error: false, data: null };
+      }
       job.status = response.error ? 'Errored' : 'Completed';
       if (job.logging !== false) {
         await this.jobLogService.update({

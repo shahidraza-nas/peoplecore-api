@@ -35,50 +35,57 @@ export class ChatMessageService extends ModelService<ChatMessage> {
    * Validate message data and save
    */
   async validateMessageAndSave(job: Job) {
-    const { owner, payload } = job;
-    const data = payload as CreateMessageDto;
+    try {
+      const { owner, payload } = job;
+      const data = payload as CreateMessageDto;
 
-    const [{ data: toUser }, { data: chatDetails }] = await Promise.all([
-      this.userService.$db.findOneRecord({
-        action: 'findone',
-        owner,
-        options: {
-          where: {
-            uid: data.toUserUid,
-            role: Role.User,
-            active: true,
+      const [{ data: toUser }, { data: chatDetails }] = await Promise.all([
+        this.userService.$db.findOneRecord({
+          action: 'findone',
+          owner,
+          options: {
+            where: {
+              uid: data.toUserUid,
+              role: Role.User,
+              active: true,
+            },
           },
-        },
-      }),
-      this.chatService.findOne({
-        action: 'findone',
-        owner,
-        payload: {
-          where: {
-            uid: data.chatUid,
-            active: true,
+        }),
+        this.chatService.findOne({
+          action: 'findone',
+          owner,
+          payload: {
+            where: {
+              uid: data.chatUid,
+              active: true,
+            },
           },
-        },
-      }),
-    ]);
+        }),
+      ]);
 
-    if (!toUser) throw new NotFoundException('User not found!');
-    if (!chatDetails) throw new NotFoundException('Chat not found!');
+      if (!toUser) throw new NotFoundException('User not found!');
+      if (!chatDetails) throw new NotFoundException('Chat not found!');
 
-    // Emit to save message via microservice
-    await this.msClient.executeJob(
-      APPEVENTS.MESSAGE,
-      new Job({
-        app: process.env.APP_ID,
-        action: 'saveMessage',
-        owner,
-        payload: {
-          toUser,
-          chatDetails,
-          message: data.message,
-        },
-      }),
-    );
+      // Emit to save message via microservice
+      await this.msClient.executeJob(
+        APPEVENTS.MESSAGE,
+        new Job({
+          app: process.env.APP_ID,
+          action: 'saveMessage',
+          owner,
+          payload: {
+            toUser,
+            chatDetails,
+            message: data.message,
+          },
+        }),
+      );
+      
+      return { error: false, data: { validated: true, chatId: chatDetails.id } };
+    } catch (error) {
+      console.error('[ChatMessageService] validateMessageAndSave failed:', error.message);
+      return { error, data: null };
+    }
   }
 
   /**
@@ -107,25 +114,25 @@ export class ChatMessageService extends ModelService<ChatMessage> {
         },
       });
 
-      if (error) {
-        throw error;
+      if (error || !createMessageDetails) {
+        throw error || new Error('Failed to create message');
       }
 
-      const { data: messageDetails } = await this.$db.findOneRecord({
+      const { data: messageDetails, error: fetchError } = await this.$db.findOneRecord({
         action: 'findone',
         owner,
         options: {
           pagination: false,
           attributes: [
+            'id',
             'uid',
             'active',
             'message',
             'isRead',
-            'type',
             'toUserId',
             'fromUserId',
-            'reaction',
             'created_at',
+            'chatId',
           ],
           where: {
             active: true,
@@ -135,30 +142,35 @@ export class ChatMessageService extends ModelService<ChatMessage> {
             {
               association: 'fromUser',
               attributes: ['name', 'uid', 'id', 'avatar'],
-              where: { active: true },
+              required: false, 
             },
             {
               association: 'toUser',
               attributes: ['name', 'uid', 'id', 'avatar'],
-              where: { active: true },
+              required: false,
             },
           ],
         },
       });
 
+      if (fetchError || !messageDetails) {
+        console.error('[ChatMessageService] Failed to fetch message details:', fetchError?.message || 'Message not found');
+        throw fetchError || new Error('Message details not found');
+      }
+
+      const messagePayload = messageDetails.toJSON();
+
       // Emit to socket server
       await this.msClient.executeJob(
         APPEVENTS.SOCKET,
         new Job({
-          app: 'socket-server',
+          app: process.env.APP_ID,
           action: 'sendMessage',
           owner,
-          payload: {
-            message: messageDetails.message,
-            ...messageDetails,
-          },
+          payload: messagePayload,
         }),
       );
+      
       await this.msClient.executeJob(
         APPEVENTS.NOTIFICATION,
         new Job({
@@ -176,8 +188,11 @@ export class ChatMessageService extends ModelService<ChatMessage> {
           },
         }),
       );
+      
+      return { error: false, data: messagePayload };
     } catch (error) {
-      console.log(error);
+      console.error('[ChatMessageService] saveMessage failed:', error.message);
+      return { error, data: null };
     }
   }
 

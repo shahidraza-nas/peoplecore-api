@@ -47,7 +47,6 @@ import {
 } from 'src/core/dto/query.dto';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { UpdateChatDto } from './dto/update-chat.dto';
-import { SendMessageDto } from './dto/send-message.dto';
 import { Chat } from './entities/chat.entity';
 import { ChatService } from './chat.service';
 import { MsListener } from 'src/core/core.decorators';
@@ -203,29 +202,6 @@ export class ChatController {
       data: { count },
       message: 'Ok',
     });
-  }
-
-  /**
-   * Send a message
-   */
-  @Post('send')
-  @ApiOperation({ summary: 'Send a message' })
-  @ResponseCreated(Chat)
-  async sendMessage(
-    @Res() res: Response,
-    @Owner() owner: OwnerDto,
-    @Body() dto: SendMessageDto,
-  ) {
-    const { error, data } = await this.chatService.sendMessage(owner, dto);
-
-    if (error) {
-      return ErrorResponse(res, {
-        error,
-        message: `${error}`,
-      });
-    }
-
-    return Created(res, { data: { message: data }, message: 'Message sent' });
   }
 
   /**

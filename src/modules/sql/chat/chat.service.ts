@@ -2,7 +2,6 @@ import { ModelService, SearchFields, SqlService } from '@core/sql';
 import { Inject, Injectable, NotFoundException, forwardRef } from '@nestjs/common';
 import { Chat } from './entities/chat.entity';
 import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
-import { SendMessageDto } from './dto/send-message.dto';
 import { Op, Sequelize } from 'sequelize';
 import { UserService } from '../user/user.service';
 import { ChatMessageService } from '../chat-message/chat-message.service';
@@ -217,113 +216,6 @@ export class ChatService extends ModelService<Chat> {
     });
 
     return messages;
-  }
-
-  /**
-   * Send a message in a chat
-   */
-  public async sendMessage(owner: OwnerDto, dto: SendMessageDto) {
-    const { data: toUser, error: userError } = await this.userService.findOne({
-      action: 'findToUser',
-      owner,
-      payload: {
-        where: { uid: dto.toUserUid },
-      },
-    });
-
-    if (userError || !toUser) {
-      throw new NotFoundException('Recipient user not found!');
-    }
-
-    const toUserId = toUser.getDataValue('id');
-
-    // Find or create chat between users
-    let chat = await this.$db.findOneRecord({
-      options: {
-        where: {
-          [Op.or]: [
-            { user1Id: owner.id, user2Id: toUserId },
-            { user1Id: toUserId, user2Id: owner.id },
-          ],
-        },
-      },
-    });
-
-    if (!chat.data) {
-      // Create new chat
-      const { data: newChat, error: chatError } = await this.create({
-        action: 'create-chat',
-        owner,
-        body: {
-          user1Id: owner.id,
-          user2Id: toUserId,
-        },
-      });
-
-      if (chatError || !newChat) {
-        throw new Error('Failed to create chat');
-      }
-
-      chat.data = newChat;
-    }
-
-    const chatId = chat.data.getDataValue('id');
-    const chatUid = chat.data.getDataValue('uid');
-
-    // Create message
-    const { data: message, error: messageError } = await this.messageService.create({
-      action: 'create-message',
-      owner,
-      payload: {
-        populate: ['fromUser', 'toUser', 'chat'],
-      },
-      body: {
-        chatId,
-        fromUserId: owner.id,
-        toUserId,
-        message: dto.message,
-        isRead: false,
-      },
-    });
-
-    if (messageError || !message) {
-      throw new Error('Failed to send message');
-    }
-
-    await this.msClient.executeJob(
-      APPEVENTS.SOCKET,
-      new Job({
-        app: process.env.APP_ID,
-        action: 'sendMessage',
-        owner,
-        payload: {
-          ...message.toJSON(),
-          chatUid,
-        },
-      }),
-    );
-
-    await this.msClient.executeJob(
-      APPEVENTS.NOTIFICATION,
-      new Job({
-        app: process.env.APP_ID,
-        action: 'sendPushNotification',
-        owner,
-        payload: {
-          toUserId,
-          title: `New message from ${owner.name || 'User'}`,
-          body: dto.message.substring(0, 100),
-          type: 'chat_message',
-          data: {
-            chatUid,
-            messageUid: message.getDataValue('uid'),
-            fromUserId: owner.id,
-          },
-        },
-      }),
-    );
-
-    return { error: false, data: message };
   }
 
   /**

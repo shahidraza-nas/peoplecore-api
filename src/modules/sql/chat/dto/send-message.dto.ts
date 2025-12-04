@@ -11,6 +11,14 @@ export class SendMessageDto {
   toUserUid: string;
 
   @ApiProperty({
+    description: 'Chat UID',
+    example: 'chat_123456',
+  })
+  @IsNotEmpty()
+  @IsString()
+  chatUid: string;
+
+  @ApiProperty({
     description: 'Message content',
     example: 'Hello, how are you?',
   })
