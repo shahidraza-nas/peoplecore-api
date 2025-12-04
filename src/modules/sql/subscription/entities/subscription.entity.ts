@@ -7,10 +7,10 @@ import { uuid } from 'src/core/core.utils';
 
 export enum SubscriptionStatus {
   ACTIVE = 'active',
-  TRIALING = 'trialing',
-  INACTIVE = 'inactive',
   CANCELLED = 'cancelled',
   EXPIRED = 'expired',
+  INACTIVE = 'inactive',
+  TRIALING = 'trialing',
 }
 
 export enum PlanType {
@@ -78,7 +78,7 @@ export class Subscription extends SqlModel {
   declare billing_status: string;
 
   @Column({
-    type: DataType.ENUM(...Object.values(SubscriptionStatus)),
+    type: DataType.ENUM(...Object.values(SubscriptionStatus).sort((a, b) => a.localeCompare(b))),
     defaultValue: SubscriptionStatus.INACTIVE,
   })
   @ApiProperty({ enum: SubscriptionStatus })

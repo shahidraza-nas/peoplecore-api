@@ -19,7 +19,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Request, Response } from 'express';
-import { Sequelize } from 'sequelize';
 import {
   ApiErrorResponses,
   FileUploads,
@@ -70,14 +69,11 @@ export class UserController {
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Body() createUserDto: CreateUserDto,
-    @Query() query: ApiQueryCreate,
   ) {
-    const { populate } = query;
     const { error, data } = await this.userService.create({
       owner,
       action: 'create',
       body: createUserDto,
-      payload: { populate },
     });
 
     if (error) {
@@ -222,22 +218,8 @@ export class UserController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetAll,
   ) {
-    const { offset, limit, search, select, where, populate, scope, sort } = query;
-    const { error, data, offset: resOffset, limit: resLimit, count } =
-      await this.userService.findAll({
-        owner,
-        action: 'findAll',
-        payload: {
-          offset,
-          limit,
-          search,
-          select,
-          where,
-          populate,
-          scope,
-          sort
-        },
-      });
+    const { error, data, offset, limit, count } =
+      await this.userService.findAllUsers(owner, query);
 
     if (error) {
       return ErrorResponse(res, {
@@ -246,7 +228,7 @@ export class UserController {
       });
     }
     return Result(res, {
-      data: { users: data, offset: resOffset, limit: resLimit, count },
+      data: { users: data, offset, limit, count },
       message: 'Ok',
     });
   }
@@ -309,13 +291,8 @@ export class UserController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetAll,
   ) {
-    const { offset, limit, search, select, where, populate, scope, sort } = query;
-    const { error, data, offset: resOffset, limit: resLimit, count } =
-      await this.userService.getOwnedUsers({
-        owner,
-        action: 'getMyUsers',
-        payload: { offset, limit, search, select, where, populate, scope, sort },
-      });
+    const { error, data, offset, limit, count } =
+      await this.userService.getOwnedUsers(owner, query);
 
     if (error) {
       return ErrorResponse(res, {
@@ -324,7 +301,7 @@ export class UserController {
       });
     }
     return Result(res, {
-      data: { users: data, offset: resOffset, limit: resLimit, count },
+      data: { users: data, offset, limit, count },
       message: 'Ok',
     });
   }
@@ -341,12 +318,7 @@ export class UserController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetOne,
   ) {
-    const { offset, search, select, where, populate, scope, sort } = query;
-    const { error, data } = await this.userService.findOne({
-      owner,
-      action: 'findOne',
-      payload: { offset, search, select, where, populate, scope, sort },
-    });
+    const { error, data } = await this.userService.findOneUser(owner, query);
 
     if (error) {
       if (error instanceof NotFoundError) {
@@ -372,28 +344,7 @@ export class UserController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetById,
   ) {
-    const { select, populate, scope } = query;
-    const { error, data } = await this.userService.findById({
-      owner,
-      action: 'findById',
-      id: owner.id,
-      payload: { 
-        select: select?.length ? [...select, 'unread_messages_count'] : undefined, 
-        populate, 
-        scope,
-      },
-      options: {
-        attributes: [
-          ...(select || ['uid', 'name', 'first_name', 'last_name', 'email', 'role', 'avatar', 'enable_2fa', 'phone_code', 'phone', 'send_email', 'send_sms', 'send_push']),
-          [
-            Sequelize.literal(
-              `(SELECT COUNT(*) FROM chat_messages WHERE to_user_id = ${owner.id} AND is_read = false)`,
-            ),
-            'unread_messages_count',
-          ],
-        ],
-      },
-    });
+    const { error, data } = await this.userService.findMeUser(owner, query);
 
     if (error) {
       if (error instanceof NotFoundError) {
@@ -420,13 +371,7 @@ export class UserController {
     @Param('uid') uid: string,
     @Query() query: ApiQueryGetById,
   ) {
-    const { select, populate, scope } = query;
-    const { error, data } = await this.userService.findById({
-      owner,
-      action: 'findById',
-      uid,
-      payload: { select, populate, scope },
-    });
+    const { error, data } = await this.userService.findUserByUid(owner, uid, query);
 
     if (error) {
       if (error instanceof NotFoundError) {
@@ -454,18 +399,7 @@ export class UserController {
     @Param('uid') uid: string,
     @Query() query: ApiQueryDelete,
   ) {
-    const { mode } = query;
-    const { error, data } = await this.userService.delete({
-      owner,
-      action: 'delete',
-      uid,
-      payload: {
-        mode,
-        where: {
-          created_by: owner.id
-        }
-      },
-    });
+    const { error, data } = await this.userService.deleteUserByUid(owner, uid, query);
 
     if (error) {
       if (error instanceof NotFoundError) {

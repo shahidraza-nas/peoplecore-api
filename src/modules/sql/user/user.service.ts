@@ -1,6 +1,6 @@
 import { ModelService, SearchFields, SqlService } from '@core/sql';
 import { Injectable, NotAcceptableException } from '@nestjs/common';
-import * as moment from 'moment-timezone';
+import moment from 'moment-timezone';
 import { Job, JobResponse } from 'src/core/core.job';
 import { compareHash, generateHash } from 'src/core/core.utils';
 import { MsClientService } from 'src/core/modules/ms-client/ms-client.service';
@@ -8,6 +8,7 @@ import { APPEVENTS } from 'src/constants';
 import { OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 import { User } from './entities/user.entity';
 import { Role } from './role.enum';
+import { Sequelize } from 'sequelize';
 
 @Injectable()
 export class UserService extends ModelService<User> {
@@ -25,30 +26,29 @@ export class UserService extends ModelService<User> {
   }
 
   /**
-   * Override findAll to apply bidirectional employee visibility
+   * Get all users with bidirectional employee visibility
    * Non-admin users can see:
    * 1. Users they created (employees they added)
    * 2. Users who created them (their manager/admin)
-   * @param job - Job object with owner and query params
+   * @param owner - Owner/authenticated user
+   * @param query - Query parameters from controller
    * @returns JobResponse with list of users
    */
-  async findAll(job: any): Promise<any> {
-    const { owner, payload = {} } = job;
-
-    // Build where clause with bidirectional relationship for non-admin users
-    const whereClause: any = {
-      ...payload.where,
+  async findAllUsers(owner: OwnerDto, query: any): Promise<any> {
+    const whereClause: any = Object.assign({}, query.where, {
       role: {
         $ne: Role.Admin
       },
       id: {
         $ne: owner.id
       }
-    };
+    });
 
-    // Non-admin users can see:
-    // 1. Users they created (employees they added)
-    // 2. Users who created them (their manager/admin)
+    /**
+     * Non-admin users can see:
+     * 1. Users they created (employees they added)
+     * 2. Users who created them (their manager/admin)
+     */
     if (owner.role !== Role.Admin) {
       whereClause.$or = [
         { created_by: owner.id },      // Users I created
@@ -57,11 +57,62 @@ export class UserService extends ModelService<User> {
     }
 
     return await super.findAll({
-      ...job,
-      payload: {
-        ...payload,
+      owner,
+      action: 'findAll',
+      payload: Object.assign({}, query, {
         where: whereClause,
-      },
+      }),
+    });
+  }
+
+  /**
+   * Find one user
+   * @param owner - Owner/authenticated user
+   * @param query - Query parameters from controller
+   * @returns JobResponse with user data or error
+   */
+  async findOneUser(owner: OwnerDto, query: any): Promise<any> {
+    return await this.findOne({
+      owner,
+      action: 'findOne',
+      payload: query,
+    });
+  }
+
+  /**
+   * Find logged-in user details with unread messages count
+   * @param owner - Owner/authenticated user
+   * @param query - Query parameters from controller
+   * @param Sequelize - Sequelize instance for raw queries
+   * @returns JobResponse with user data including unread_messages_count
+   */
+  async findMeUser(owner: OwnerDto, query: any): Promise<any> {
+    const { select, populate, scope } = query;
+
+    const payload = Object.assign({}, {
+      select: select?.length ? [...select, 'unread_messages_count'] : undefined,
+      populate,
+      scope,
+    });
+
+    const options = {
+      attributes: [
+        ...(select || ['uid', 'name', 'first_name', 'last_name', 'email', 'role', 'avatar', 'enable_2fa', 'phone_code', 'phone', 'send_email', 'send_sms', 'send_push']),
+        [
+          Sequelize.literal(
+            `(SELECT COUNT(*) FROM chat_messages WHERE to_user_id = ${owner.id} AND is_read = false)`,
+          ),
+          'unread_messages_count',
+        ],
+      ],
+    };
+
+    return await super.findById({
+      owner,
+      action: 'findById',
+      id: owner.id,
+      payload,
+      options,
     });
   }
 
@@ -117,42 +168,40 @@ export class UserService extends ModelService<User> {
   }
 
   /**
-   * Override findById to accept uid parameter and resolve to internal id
-   * @param job - Job object with uid and query params
+   * Find user by uid with permission checks
+   * @param owner - Owner/authenticated user
+   * @param uid - User uid to find
+   * @param query - Optional query parameters
    * @returns JobResponse with user data or error
    */
-  async findById(job: any): Promise<JobResponse> {
-    const { owner, uid, payload } = job;
-    if (uid) {
-      const { data: user, error: findError } = await this.findOne({
-        owner,
-        action: 'findOne',
-        payload: {
-          where: { uid },
-        },
-      });
+  async findUserByUid(owner: OwnerDto, uid: string, query?: any): Promise<JobResponse> {
+    const { data: user, error: findError } = await this.findOne({
+      owner,
+      action: 'findOne',
+      payload: {
+        where: { uid },
+      },
+    });
 
-      if (findError || !user) {
-        return { error: findError || 'User not found' };
-      }
-
-      if (owner.role !== Role.Admin) {
-        const targetUserId = user.getDataValue('id');
-        const targetCreatedBy = user.getDataValue('created_by');
-        
-        if (targetCreatedBy !== owner.id && targetUserId !== owner.created_by) {
-          return { error: 'Permission denied. You can only view users you created or who created you.' };
-        }
-      }
-
-      return await super.findById({
-        owner,
-        action: 'findById',
-        id: user.getDataValue('id'),
-        payload,
-      });
+    if (findError || !user) {
+      return { error: findError || 'User not found' };
     }
-    return await super.findById(job);
+
+    if (owner.role !== Role.Admin) {
+      const targetUserId = user.getDataValue('id');
+      const targetCreatedBy = user.getDataValue('created_by');
+
+      if (targetCreatedBy !== owner.id && targetUserId !== owner.created_by) {
+        return { error: 'Permission denied. You can only view users you created or who created you.' };
+      }
+    }
+
+    return await super.findById({
+      owner,
+      action: 'findById',
+      id: user.getDataValue('id'),
+      payload: query || {},
+    });
   }
 
   /**
@@ -176,11 +225,16 @@ export class UserService extends ModelService<User> {
         return { error: findError || 'User not found' };
       }
 
-      // Permission check: Non-admin users can only update users they created (employees)
+      /**
+       * Permission check: 
+       * Non-admin users can only update users they created (employees)
+       */
       if (owner.role !== Role.Admin) {
         const targetCreatedBy = user.getDataValue('created_by');
-        
-        // Only allow update if current user created this user (manager can update employee)
+
+        /**
+         * Only allow update if current user created this user (manager can update employee)
+         */
         if (targetCreatedBy !== owner.id) {
           return { error: 'Permission denied. You can only update users you created.' };
         }
@@ -199,46 +253,52 @@ export class UserService extends ModelService<User> {
   }
 
   /**
-   * Override delete to accept uid parameter and resolve to internal id
-   * @param job - Job object with uid
+   * Delete user by uid with permission checks
+   * @param owner - Owner/authenticated user
+   * @param uid - User uid to delete
+   * @param query - Query parameters (mode, etc.)
    * @returns JobResponse with deleted user data or error
    */
-  async delete(job: any): Promise<JobResponse> {
-    const { owner, uid, payload } = job;
+  async deleteUserByUid(owner: OwnerDto, uid: string, query: any): Promise<JobResponse> {
+    const { data: user, error: findError } = await this.findOne({
+      owner,
+      action: 'findOne',
+      payload: {
+        where: { uid },
+      },
+    });
 
-
-    if (uid) {
-      const { data: user, error: findError } = await this.findOne({
-        owner,
-        action: 'findOne',
-        payload: {
-          where: { uid },
-        },
-      });
-
-      if (findError || !user) {
-        return { error: findError || 'User not found' };
-      }
-
-      // Permission check: Non-admin users can only delete users they created (employees)
-      if (owner.role !== Role.Admin) {
-        const targetCreatedBy = user.getDataValue('created_by');
-        
-        // Only allow delete if current user created this user (manager can delete employee)
-        if (targetCreatedBy !== owner.id) {
-          return { error: 'Permission denied. You can only delete users you created.' };
-        }
-      }
-
-      return await super.delete({
-        owner,
-        action: 'delete',
-        id: user.getDataValue('id'),
-        payload,
-      });
+    if (findError || !user) {
+      return { error: findError || 'User not found' };
     }
 
-    return await super.delete(job);
+    /**
+     * Permission check: 
+     * Non-admin users can only delete users they created (employees)
+     */
+    if (owner.role !== Role.Admin) {
+      const targetCreatedBy = user.getDataValue('created_by');
+
+      /**
+       * Only allow delete if current user created this user (manager can delete employee)
+       */
+      if (targetCreatedBy !== owner.id) {
+        return { error: 'Permission denied. You can only delete users you created.' };
+      }
+    }
+
+    const payload = Object.assign({}, query, {
+      where: Object.assign({}, query.where, {
+        created_by: owner.id
+      })
+    });
+
+    return await super.delete({
+      owner,
+      action: 'delete',
+      id: user.getDataValue('id'),
+      payload,
+    });
   }
 
   async changePassword(job: Job): Promise<JobResponse> {
@@ -340,19 +400,15 @@ export class UserService extends ModelService<User> {
       });
 
       // recent users (last 5)
-      const { data: recentUsers } = await this.findAll({
-        owner,
-        action: 'findAll',
-        payload: {
-          offset: 0,
-          limit: 5,
-          where: {
-            ...(owner.role !== Role.Admin && { created_by: owner.id }),
-            role: { $ne: Role.Admin },
-            id: { $ne: owner.id },
-          },
-          sort: [['created_at', 'desc']],
+      const { data: recentUsers } = await this.findAllUsers(owner, {
+        offset: 0,
+        limit: 5,
+        where: {
+          ...(owner.role !== Role.Admin && { created_by: owner.id }),
+          role: { $ne: Role.Admin },
+          id: { $ne: owner.id },
         },
+        sort: [['created_at', 'desc']],
       });
       let totalChats = 0;
       try {
@@ -388,22 +444,14 @@ export class UserService extends ModelService<User> {
    * @param job - Job object with owner and query params
    * @returns JobResponse with list of users created by owner
    */
-  async getOwnedUsers(job: Job) {
-    const { owner, payload = {} } = job;
-
-    const where = {
-      ...payload.where,
+  async getOwnedUsers(owner: OwnerDto, query: any) {
+    const where = Object.assign({}, query.where, {
       created_by: owner.id,
-    };
-
-    return await this.findAll({
-      owner,
-      action: 'findAll',
-      payload: {
-        ...payload,
-        where,
-      },
     });
+
+    return await this.findAllUsers(owner, Object.assign({}, query, {
+      where,
+    }));
   }
 
   /**

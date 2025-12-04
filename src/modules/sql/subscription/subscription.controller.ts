@@ -40,7 +40,9 @@ import { Public } from 'src/core/decorators/public.decorator';
 import {
   ApiQueryCountAll,
   ApiQueryCreate,
+  ApiQueryDelete,
   ApiQueryGetAll,
+  ApiQueryGetById,
   ApiQueryGetOne,
   ApiQueryUpdate,
 } from 'src/core/dto/query.dto';
@@ -80,11 +82,6 @@ export class SubscriptionController {
     @Body() createCheckoutDto: CreateCheckoutDto,
   ) {
     try {
-      // console.log('[Checkout Request]', {
-      //   userId: owner.id,
-      //   email: owner.email,
-      //   dto: createCheckoutDto,
-      // });
 
       const { error, data: session } = await this.subscriptionService.createCheckoutSession(
         owner,
@@ -92,37 +89,21 @@ export class SubscriptionController {
       );
 
       if (error) {
-        console.error('[Checkout Error]', {
-          message: error.message,
-          type: error.constructor.name,
-          stack: error.stack?.split('\n')[0],
-        });
         return ErrorResponse(res, { error, message: error.message });
       }
 
       if (!session || !session.url || !session.id) {
-        console.error('[Checkout Error] Invalid session object:', session);
         return ErrorResponse(res, {
           error: new Error('Invalid session returned from Stripe'),
           message: 'Failed to create checkout session - invalid response',
         });
       }
 
-      // console.log('[Checkout Success]', {
-      //   sessionId: session.id,
-      //   url: session.url.substring(0, 60) + '...',
-      // });
-
       return Created(res, {
         data: { sessionUrl: session.url, sessionId: session.id },
         message: 'Checkout session created',
       });
     } catch (error) {
-      console.error('[Checkout Fatal Error]', {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-      });
       return ErrorResponse(res, {
         error,
         message: error.message || 'Unexpected error creating checkout session',
@@ -222,10 +203,8 @@ export class SubscriptionController {
     @Owner() owner: OwnerDto,
     @Query('immediate') immediate?: string,
   ) {
-    console.log('[Cancel Request] immediate query param:', immediate, 'type:', typeof immediate);
     try {
       const cancelImmediately = immediate === 'true';
-      console.log('[Cancel] cancelImmediately:', cancelImmediately);
       const { error, data } = await this.subscriptionService.cancelUserSubscription(
         owner,
         cancelImmediately,
@@ -388,15 +367,12 @@ export class SubscriptionController {
     @Owner() owner: OwnerDto,
     @Param('uid') uid: string,
     @Body() updateSubscriptionDto: UpdateSubscriptionDto,
-    @Query() query: ApiQueryUpdate,
   ) {
-    const { error, data } = await this.subscriptionService.update({
+    const { error, data } = await this.subscriptionService.updateSubscriptionByUid(
       owner,
-      action: 'update',
       uid,
-      body: updateSubscriptionDto,
-      payload: { ...query },
-    });
+      updateSubscriptionDto,
+    );
 
     if (error) {
       if (error instanceof NotFoundError) {
@@ -483,11 +459,7 @@ export class SubscriptionController {
     @Owner() owner: OwnerDto,
     @Query() query: ApiQueryGetOne,
   ) {
-    const { error, data } = await this.subscriptionService.findOne({
-      owner,
-      action: 'findOne',
-      payload: { ...query },
-    });
+    const { error, data } = await this.subscriptionService.findOneSubscription(owner, query);
 
     if (error) {
       if (error instanceof NotFoundError) {
@@ -514,13 +486,10 @@ export class SubscriptionController {
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Param('uid') uid: string,
-    @Query() query: any,
   ) {
     const { error, data } = await this.subscriptionService.findById({
       owner,
-      action: 'findById',
-      uid,
-      payload: { ...query },
+      uid
     });
 
     if (error) {
@@ -548,13 +517,10 @@ export class SubscriptionController {
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Param('uid') uid: string,
-    @Query() query: any,
   ) {
     const { error, data } = await this.subscriptionService.delete({
       owner,
-      action: 'delete',
-      uid,
-      payload: { ...query },
+      uid
     });
 
     if (error) {

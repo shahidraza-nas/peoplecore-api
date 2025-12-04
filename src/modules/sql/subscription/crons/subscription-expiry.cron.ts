@@ -84,7 +84,9 @@ export class SubscriptionExpiryCron {
                     }),
                 );
                 
-                // Mark notification as sent to prevent duplicates
+                /**
+                 * Mark notification as sent to prevent duplicates
+                 */
                 await this.subscriptionService.update({
                     owner: { id: 0 } as any,
                     action: 'update',

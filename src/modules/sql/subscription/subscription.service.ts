@@ -267,7 +267,7 @@ export class SubscriptionService extends ModelService<Subscription> {
   ) {
     const userId = owner.id;
     const userEmail = owner.email;
-    const planType = createCheckoutDto.planType || 'chat_monthly';
+    const planType = createCheckoutDto.plan_type || 'chat_monthly';
     const frontendUrl = this.configService.get('FRONTEND_URL');
     const stripeConfig = this.configService.get('stripe');
 
@@ -670,6 +670,35 @@ export class SubscriptionService extends ModelService<Subscription> {
     } catch (error) {
       return { error, data: null, count: 0 };
     }
+  }
+
+  /**
+   * Update subscription by uid
+   * @param owner - Owner/authenticated user
+   * @param uid - Subscription uid to update
+   * @param body - Update data
+   * @returns JobResponse with updated subscription data or error
+   */
+  async updateSubscriptionByUid(owner: OwnerDto, uid: string, body: any) {
+    return await this.update({
+      owner,
+      uid,
+      body,
+    });
+  }
+
+  /**
+   * Find one subscription with explicit query parameters
+   * @param owner - Owner/authenticated user
+   * @param query - Query parameters (where, select, populate, sort, search, offset)
+   * @returns JobResponse with subscription data or error
+   */
+  async findOneSubscription(owner: OwnerDto, query: any) {
+    const { where } = query;
+    return await this.findOne({
+      owner,
+      payload: { where },
+    });
   }
 
   /**
