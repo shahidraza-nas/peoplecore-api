@@ -1,6 +1,7 @@
 # Chat System Architecture & Flow Documentation
 
 ## Table of Contents
+
 1. [Overview](#overview)
 2. [Architecture Design](#architecture-design)
 3. [Technology Stack](#technology-stack)
@@ -21,6 +22,7 @@
 The PeopleCore chat system is a **real-time messaging platform** built on a microservice architecture using **WebSocket-only for sending** and **HTTP-only for retrieval**. This hybrid approach optimizes for real-time performance while maintaining REST principles for data fetching.
 
 ### Key Features
+
 - ✅ Real-time bidirectional messaging
 - ✅ WebSocket-based message sending
 - ✅ HTTP-based message retrieval
@@ -109,6 +111,7 @@ The PeopleCore chat system is a **real-time messaging platform** built on a micr
 ## Technology Stack
 
 ### Backend
+
 - **Framework**: NestJS with TypeScript
 - **Database**: PostgreSQL (via Sequelize ORM)
 - **Real-Time**: Socket.IO with Redis adapter
@@ -116,6 +119,7 @@ The PeopleCore chat system is a **real-time messaging platform** built on a micr
 - **Authentication**: JWT (via NextAuth v5)
 
 ### Frontend
+
 - **Framework**: Next.js 16 (App Router)
 - **UI Library**: React 19 with shadcn/ui
 - **Real-Time**: Socket.IO Client
@@ -123,6 +127,7 @@ The PeopleCore chat system is a **real-time messaging platform** built on a micr
 - **State**: React Context API
 
 ### Infrastructure
+
 - **Redis**: Event bus + Socket.IO adapter
 - **WebSocket**: Bidirectional communication
 - **REST API**: CRUD operations
@@ -239,6 +244,7 @@ The PeopleCore chat system is a **real-time messaging platform** built on a micr
 ## Database Schema
 
 ### Chat Table
+
 ```sql
 CREATE TABLE chats (
   id SERIAL PRIMARY KEY,
@@ -262,6 +268,7 @@ CREATE INDEX idx_chats_active ON chats(active);
 ```
 
 ### ChatMessage Table
+
 ```sql
 CREATE TABLE chat_messages (
   id SERIAL PRIMARY KEY,
@@ -290,6 +297,7 @@ CREATE INDEX idx_chat_messages_uid ON chat_messages(uid);
 ```
 
 ### Entity Relationships
+
 ```
 ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
 │    User     │       │    Chat     │       │ ChatMessage │
@@ -313,6 +321,7 @@ CREATE INDEX idx_chat_messages_uid ON chat_messages(uid);
 ### Chat Management
 
 #### Create or Find Chat
+
 ```http
 POST /chat
 Authorization: Bearer <JWT>
@@ -341,6 +350,7 @@ Response (201 Created):
 ```
 
 #### Get My Chats
+
 ```http
 GET /chat?offset=0&limit=50
 Authorization: Bearer <JWT>
@@ -368,6 +378,7 @@ Response (200 OK):
 ```
 
 #### Get Chat Messages
+
 ```http
 GET /chat/:chatUid/messages?offset=0&limit=50
 Authorization: Bearer <JWT>
@@ -396,6 +407,7 @@ Response (200 OK):
 ```
 
 #### Mark All Messages as Read
+
 ```http
 GET /chat/:chatUid/messages/readAll
 Authorization: Bearer <JWT>
@@ -423,6 +435,7 @@ Side Effect:
 #### Client → Server (Emit)
 
 **Send Message**
+
 ```typescript
 socket.emit('user.message', {
   toUserUid: '62e3cc70-d0f0-11f0-905e-31f6d4c5438c',
@@ -432,6 +445,7 @@ socket.emit('user.message', {
 ```
 
 **Typing Indicator**
+
 ```typescript
 socket.emit('user.typing', {
   toUserId: 33,
@@ -441,6 +455,7 @@ socket.emit('user.typing', {
 ```
 
 **Request Online Users**
+
 ```typescript
 socket.emit('getOnlineUsers');
 ```
@@ -448,6 +463,7 @@ socket.emit('getOnlineUsers');
 #### Server → Client (Listen)
 
 **Receive Message**
+
 ```typescript
 socket.on('user.message', (data: { message: ChatMessage }) => {
   console.log('New message:', data.message);
@@ -456,6 +472,7 @@ socket.on('user.message', (data: { message: ChatMessage }) => {
 ```
 
 **Typing Status**
+
 ```typescript
 socket.on('user.typing', (data: { userId: number, chatUid: string, isTyping: boolean }) => {
   // Show/hide typing indicator
@@ -463,6 +480,7 @@ socket.on('user.typing', (data: { userId: number, chatUid: string, isTyping: boo
 ```
 
 **Messages Read**
+
 ```typescript
 socket.on('messages.read', (data: { chatUid: string, readBy: number }) => {
   // Update read status in UI
@@ -470,6 +488,7 @@ socket.on('messages.read', (data: { chatUid: string, readBy: number }) => {
 ```
 
 **User Online/Offline**
+
 ```typescript
 socket.on('user.online', (data: { userId: number }) => {
   // Update online status indicator
@@ -481,6 +500,7 @@ socket.on('user.offline', (data: { userId: number }) => {
 ```
 
 **Online Users List**
+
 ```typescript
 socket.on('onlineUsers.list', (data: { userIds: number[] }) => {
   // Update online users list
@@ -568,6 +588,7 @@ async execute(job: Job): Promise<void> {
 ### Backend Components
 
 #### 1. AppGateway
+
 **Location**: `src/app.gateway.ts`
 
 WebSocket gateway handling real-time connections.
@@ -591,6 +612,7 @@ export class AppGateway {
 ```
 
 #### 2. ChatMessageController
+
 **Location**: `src/modules/sql/chat-message/chat-message.controller.ts`
 
 Microservice queue consumer for message operations.
@@ -607,15 +629,18 @@ export class ChatMessageController {
 ```
 
 #### 3. ChatMessageService
+
 **Location**: `src/modules/sql/chat-message/chat-message.service.ts`
 
 Business logic for message handling.
 
 **Key Methods**:
+
 - `validateMessageAndSave(job)`: Validates user/chat existence, queues save job
 - `saveMessage(job)`: Creates message in DB, broadcasts to socket, sends push notification
 
 #### 4. SocketEventController
+
 **Location**: `src/modules/socket-event/socket-event.controller.ts`
 
 Microservice queue consumer for socket broadcasting.
@@ -632,6 +657,7 @@ export class SocketEventController {
 ```
 
 #### 5. SocketEventService
+
 **Location**: `src/modules/socket-event/socket-event.service.ts`
 
 Handles socket event broadcasting via Redis Propagator.
@@ -660,11 +686,13 @@ export class SocketEventService {
 ```
 
 #### 6. ChatController
+
 **Location**: `src/modules/sql/chat/chat.controller.ts`
 
 HTTP REST endpoints for chat management.
 
 **Key Endpoints**:
+
 - `POST /chat`: Create/find chat
 - `GET /chat`: List user's chats
 - `GET /chat/:chatUid/messages`: Fetch messages
@@ -673,6 +701,7 @@ HTTP REST endpoints for chat management.
 ### Frontend Components
 
 #### 1. useChat Hook
+
 **Location**: `peoplecore-ui/hooks/use-chat.ts`
 
 React hook managing chat state and socket listeners.
@@ -711,6 +740,7 @@ export function useChat() {
 ```
 
 #### 2. Socket Context
+
 **Location**: `peoplecore-ui/contexts/socket.tsx`
 
 Manages WebSocket connection lifecycle.
@@ -739,6 +769,7 @@ export function SocketProvider({ children }) {
 ```
 
 #### 3. API Client
+
 **Location**: `peoplecore-ui/lib/fetch.ts`
 
 HTTP client for chat operations.
@@ -769,6 +800,7 @@ export const API = {
 ### JWT Authentication
 
 **Backend** (`socket-state.adapter.ts`):
+
 ```typescript
 async handleConnection(client: Socket) {
   const token = client.handshake.auth.token;
@@ -783,6 +815,7 @@ async handleConnection(client: Socket) {
 ```
 
 **Frontend** (`socket.tsx`):
+
 ```typescript
 const socket = io(SOCKET_URL, {
   auth: { token: session.accessToken }
@@ -792,6 +825,7 @@ const socket = io(SOCKET_URL, {
 ### Access Control
 
 #### Chat Access Guard
+
 ```typescript
 @Injectable()
 export class ChatAccessGuard implements CanActivate {
@@ -817,6 +851,7 @@ export class ChatAccessGuard implements CanActivate {
 ```
 
 ### Subscription Check
+
 Messages require active subscription (enforced via `ChatAccessGuard`).
 
 ---
@@ -923,6 +958,7 @@ attributes: [
 **Symptoms**: Messages save to DB but don't appear in chat window
 
 **Diagnosis**:
+
 ```bash
 # Check backend logs for socket broadcast
 [SocketEventService.sendMessage] Broadcasting message
@@ -938,6 +974,7 @@ Socket ID: WU-_YvuVftzM6f9WAAAB
 ```
 
 **Solutions**:
+
 - Verify socket connection established
 - Ensure `chatId` in message matches `activeChat.id`
 - Check Redis is running for Socket.IO adapter
@@ -979,6 +1016,7 @@ export class ChatMessageController
 ## Future Enhancements
 
 ### Planned Features
+
 - [ ] Message reactions (emojis)
 - [ ] File/image attachments
 - [ ] Voice messages
@@ -991,6 +1029,7 @@ export class ChatMessageController
 - [ ] End-to-end encryption
 
 ### Scalability Improvements
+
 - [ ] Message archival to S3 after 90 days
 - [ ] Read replica for message fetching
 - [ ] CDN for media attachments
@@ -1002,6 +1041,7 @@ export class ChatMessageController
 ## Conclusion
 
 The PeopleCore chat system demonstrates a robust, scalable architecture for real-time messaging using:
+
 - **WebSocket-only sending** for instant delivery
 - **HTTP-only fetching** for reliable message retrieval
 - **Redis microservice queues** for decoupled, asynchronous processing
