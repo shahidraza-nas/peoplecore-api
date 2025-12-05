@@ -72,7 +72,7 @@ export class NotificationService {
         ),
       ];
 
-      console.log({ payload, tokens });
+      // console.log({ payload, tokens });
 
       if (tokens.length === 0) throw Error('Tokes not found!');
 
@@ -87,13 +87,13 @@ export class NotificationService {
             notification: {
               title: payload.title,
               body: payload.body,
-              image: '/images/icon-192x192.png',
+              image: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/images/icon-192x192.png`,
             },
             data: {
               title: payload.title,
               body: payload.body,
-              icon: '/images/icon-192x192.png',
-              badge: '/images/badge-72x72.png',
+              icon: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/images/icon-192x192.png`,
+              badge: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/images/badge-72x72.png`,
               chatUid: payload.data?.chatUid || '',
               type: payload.data?.type || 'chat_message',
               url: payload.data?.chatUid ? `/chat/${payload.data.chatUid}` : '/chat',
@@ -103,8 +103,8 @@ export class NotificationService {
               notification: {
                 title: payload.title,
                 body: payload.body,
-                icon: '/images/icon-192x192.png',
-                badge: '/images/badge-72x72.png',
+                icon: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/images/icon-192x192.png`,
+                badge: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/images/badge-72x72.png`,
                 requireInteraction: true,
                 tag: payload.data?.chatUid || 'chat-notification',
                 vibrate: [200, 100, 200],
