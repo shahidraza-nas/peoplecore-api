@@ -26,6 +26,7 @@ export class ChatAccessGuard implements CanActivate {
          * Check if user has active subscription
          */
         const hasAccess = await this.subscriptionService.checkChatAccess(user);
+
         if (!hasAccess) {
             throw new HttpException({
                 statusCode: HttpStatus.FORBIDDEN,

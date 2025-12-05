@@ -1,4 +1,15 @@
-import { PickType } from '@nestjs/swagger';
-import { Subscription } from '../entities/subscription.entity';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEnum, IsOptional } from 'class-validator';
+import { PlanType } from '../entities/subscription.entity';
 
-export class CreateCheckoutDto extends PickType(Subscription, ['plan_type'] as const) { }
+export class CreateCheckoutDto {
+  @ApiProperty({ 
+    enum: PlanType,
+    description: 'Subscription plan type',
+    required: false,
+    default: PlanType.CHAT_MONTHLY
+  })
+  @IsOptional()
+  @IsEnum(PlanType)
+  plan_type?: PlanType;
+}

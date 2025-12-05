@@ -380,10 +380,25 @@ export class SubscriptionService extends ModelService<Subscription> {
       },
     });
 
-    if (!subscription) return false;
+    if (!subscription) {
+      return false;
+    }
+
+    const now = new Date();
+    const periodEnd = new Date(subscription.current_period_end);
+    const hasTimeRemaining = now < periodEnd;
 
     /**
-     * Check billing_status (source of truth from Stripe)
+     * PRIORITY 1: Check if subscription is CANCELLED but period is still valid
+     * If cancelled but period hasn't ended, user retains access until expiry
+     * This handles the case where user cancelled but has already paid for the period
+     */
+    if (subscription.status === SubscriptionStatus.CANCELLED) {
+      return hasTimeRemaining;
+    }
+
+    /**
+     * PRIORITY 2: Check billing_status (source of truth from Stripe)
      * Allow access for 'active' and 'trialing' statuses
      */
     const activeBillingStatuses = ['active', 'trialing'];
@@ -392,20 +407,18 @@ export class SubscriptionService extends ModelService<Subscription> {
     }
 
     /**
-     * If subscription is cancelled but period hasn't ended, allow access
-     * User retains access until current_period_end
+     * PRIORITY 3: If subscription is set to cancel at period end, allow access until then
      */
     if (subscription.cancel_at_period_end) {
-      return new Date() < new Date(subscription.current_period_end);
+      return hasTimeRemaining;
     }
 
     /**
-     * Check internal status and period validity
+     * PRIORITY 4: Check internal status and period validity
      * Allow access for both active and trialing subscriptions
      */
     const validStatuses = [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING];
-    return validStatuses.includes(subscription.status) &&
-      new Date() < new Date(subscription.current_period_end);
+    return validStatuses.includes(subscription.status) && hasTimeRemaining;
   }
   /**
    * Get user's active subscription
@@ -1188,6 +1201,7 @@ export class SubscriptionService extends ModelService<Subscription> {
   /**
    * Handle customer.subscription.deleted event
    * Marks subscription as cancelled when Stripe subscription is deleted
+   * This event fires when subscription is cancelled IMMEDIATELY (not at period end)
    * @param subscription Stripe subscription object
    */
   private async handleSubscriptionDeleted(subscription: any) {
@@ -1210,8 +1224,12 @@ export class SubscriptionService extends ModelService<Subscription> {
         return;
       }
 
+      const now = new Date();
+
       /**
-       * Mark subscription as cancelled
+       * Mark subscription as cancelled IMMEDIATELY
+       * Set current_period_end to NOW to revoke access immediately
+       * This is different from cancel_at_period_end where user retains access
        */
       await this.update({
         owner: { id: existing.user_id } as any,
@@ -1220,14 +1238,15 @@ export class SubscriptionService extends ModelService<Subscription> {
         body: {
           status: SubscriptionStatus.CANCELLED,
           billing_status: 'canceled',
-          cancelled_at: new Date(),
+          cancelled_at: now,
           cancel_at_period_end: false,
           next_billing_date: null,
+          current_period_end: now, // CRITICAL: Set to NOW to revoke access immediately
         },
         payload: {},
       });
 
-      console.log(`Subscription ${subscription.id} deleted for user ${existing.user_id}`);
+      console.log(`Subscription ${subscription.id} deleted for user ${existing.user_id} - access revoked immediately`);
     } catch (error) {
       console.error('Error handling subscription deleted:', error.message);
     }

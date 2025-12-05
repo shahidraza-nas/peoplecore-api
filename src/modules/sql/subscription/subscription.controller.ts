@@ -82,7 +82,6 @@ export class SubscriptionController {
     @Body() createCheckoutDto: CreateCheckoutDto,
   ) {
     try {
-
       const { error, data: session } = await this.subscriptionService.createCheckoutSession(
         owner,
         createCheckoutDto,

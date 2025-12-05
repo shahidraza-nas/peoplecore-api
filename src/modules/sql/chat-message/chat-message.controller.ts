@@ -21,6 +21,7 @@ const entity = snakeCase(ChatMessage.name);
 @ApiTags(entity)
 @ApiErrorResponses()
 @ApiExtraModels(ChatMessage)
+// @UseGuards(ChatAccessGuard)
 @Controller(entity)
 export class ChatMessageController {
   constructor(
