@@ -41,6 +41,7 @@ import { Owner, OwnerDto } from 'src/core/decorators/sql/owner.decorator';
 import {
   ApiQueryCountAll,
   ApiQueryCreate,
+  ApiQueryDelete,
   ApiQueryGetAll,
   ApiQueryGetOne,
   ApiQueryUpdate,
@@ -205,74 +206,6 @@ export class ChatController {
   }
 
   /**
-   * Find one entity document
-   */
-  @Get('find')
-  @ApiOperation({ summary: `Find one ${entity}` })
-  @ResponseGetOne(Chat)
-  async findOne(
-    @Res() res: Response,
-    @Owner() owner: OwnerDto,
-    @Query() query: ApiQueryGetOne,
-  ) {
-    const { error, data } = await this.chatService.findOne({
-      owner,
-      action: 'findOne',
-      payload: { ...query },
-    });
-
-    if (error) {
-      if (error instanceof NotFoundError) {
-        return NotFound(res, {
-          error,
-          message: `Record not found`,
-        });
-      }
-      return ErrorResponse(res, {
-        error,
-        message: `${error.message || error}`,
-      });
-    }
-    return Result(res, { data: { [entity]: data }, message: 'Ok' });
-  }
-
-
-
-  /**
-   * Get an entity document by using id
-   */
-  @Get(':id')
-  @ApiOperation({ summary: `Find ${entity} using id` })
-  @ResponseGetOne(Chat)
-  async findById(
-    @Res() res: Response,
-    @Owner() owner: OwnerDto,
-    @Param('id') id: number,
-    @Query() query: any,
-  ) {
-    const { error, data } = await this.chatService.findById({
-      owner,
-      action: 'findById',
-      id: +id,
-      payload: { ...query },
-    });
-
-    if (error) {
-      if (error instanceof NotFoundError) {
-        return NotFound(res, {
-          error,
-          message: `Record not found`,
-        });
-      }
-      return ErrorResponse(res, {
-        error,
-        message: `${error.message || error}`,
-      });
-    }
-    return Result(res, { data: { [entity]: data }, message: 'Ok' });
-  }
-
-  /**
    * Get messages for a specific chat
    * IMPORTANT: Must be before @Delete(':id') to avoid route conflict
    */
@@ -313,7 +246,6 @@ export class ChatController {
     @Owner() owner: OwnerDto,
     @Param('chatUid') chatUid: string,
   ) {
-    // Call service directly instead of queueing microservice job for synchronous response
     const { error, data } = await this.chatService.readAllMessages(
       new Job({
         app: process.env.APP_ID,
@@ -346,13 +278,12 @@ export class ChatController {
     @Res() res: Response,
     @Owner() owner: OwnerDto,
     @Param('id') id: number,
-    @Query() query: any,
+    @Query() query: ApiQueryDelete,
   ) {
     const { error, data } = await this.chatService.delete({
       owner,
       action: 'delete',
       id: +id,
-      payload: { ...query },
     });
 
     if (error) {
