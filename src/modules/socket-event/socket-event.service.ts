@@ -105,16 +105,12 @@ export class SocketEventService {
    */
   async sendOnlineUsersList(job: Job) {
     const { requestingUserId } = job.payload as { requestingUserId: number };
-    
     const onlineUserIds = this.socketStateService.getOnlineUserIds();
-    console.log(`Sending online users list to USER_${requestingUserId}:`, onlineUserIds);
-
     this.redisPropagatorService.propagateEvent({
       userId: `${requestingUserId}`,
       event: 'onlineUsers.list',
       data: { userIds: onlineUserIds },
     });
-
     return { error: false };
   }
 
