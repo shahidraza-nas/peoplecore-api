@@ -37,7 +37,7 @@ export class AuthService {
     private _cache: CachingService,
     @Inject(forwardRef(() => ChatService))
     private chatService: ChatService,
-  ) {}
+  ) { }
 
   async createSession(owner: OwnerDto, info: any): Promise<any> {
     try {
@@ -64,10 +64,10 @@ export class AuthService {
       if (tokenError) {
         return { error: tokenError };
       }
-      
+
       // Get unread messages count
       const unreadMessagesCount = await this.chatService.getUnreadMessagesCount(owner.id);
-      
+
       return {
         error: false,
         data: {
@@ -121,11 +121,11 @@ export class AuthService {
         if (tokenError) {
           return { error: tokenError };
         }
-        
+
         // Get unread messages count
         const unreadMessagesCount = await this.chatService.getUnreadMessagesCount(userId);
         const userJson = user.toJSON();
-        
+
         return {
           error: false,
           data: {
@@ -152,6 +152,21 @@ export class AuthService {
         payload,
       },
     });
+
+    if (!error && data) {
+      await this.msClient.executeJob(
+        APPEVENTS.NOTIFICATION,
+        new Job({
+          action: 'send',
+          payload: {
+            user_id: user.id,
+            template: 'forgot_password',  // Or create a '2fa_login' template
+            variables: { OTP: data.otp },
+          },
+        }),
+      );
+      console.log('📧 [2FA] Email sent to:', user.email);
+    }
     return { error, data };
   }
 

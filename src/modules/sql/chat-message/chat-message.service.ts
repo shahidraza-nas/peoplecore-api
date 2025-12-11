@@ -46,7 +46,7 @@ export class ChatMessageService extends ModelService<ChatMessage> {
           options: {
             where: {
               uid: data.toUserUid,
-              role: Role.User,
+              // role: Role.User,
               active: true,
             },
           },
