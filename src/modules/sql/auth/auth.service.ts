@@ -160,7 +160,7 @@ export class AuthService {
           action: 'send',
           payload: {
             user_id: user.id,
-            template: 'forgot_password',  // Or create a '2fa_login' template
+            template: 'forgot_password',
             variables: { OTP: data.otp },
           },
         }),
