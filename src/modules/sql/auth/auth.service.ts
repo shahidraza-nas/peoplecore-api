@@ -165,7 +165,6 @@ export class AuthService {
           },
         }),
       );
-      console.log('📧 [2FA] Email sent to:', user.email);
     }
     return { error, data };
   }
