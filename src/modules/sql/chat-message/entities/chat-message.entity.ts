@@ -80,6 +80,10 @@ export class ChatMessage extends SqlModel {
   @BelongsTo(() => Chat, 'chatId')
   chat: Chat;
 
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: {} })
+  @ApiProperty({ description: 'Reactions on the message', example: { '👍': [1, 2] } })
+  declare reactions: Record<string, number[]>;
+
   @BeforeCreate
   static setUuid(instance: ChatMessage) {
     instance.uid = `msg_${uuid()}`;

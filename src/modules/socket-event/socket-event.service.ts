@@ -3,12 +3,14 @@ import { Job } from 'src/core/core.job';
 import { RedisPropagatorService } from 'src/core/modules/socket/redis-propagator/redis-propagator.service';
 import { SocketStateService } from 'src/core/modules/socket/socket-state/socket-state.service';
 import { ChatMessage } from '../sql/chat-message/entities/chat-message.entity';
+import { ChatService } from '../sql/chat/chat.service';
 
 @Injectable()
 export class SocketEventService {
   constructor(
     private redisPropagatorService: RedisPropagatorService,
     private socketStateService: SocketStateService,
+    private chatService: ChatService,
   ) {}
 
   /**
@@ -130,6 +132,48 @@ export class SocketEventService {
       userId: `${toUserId}`,
       event: 'messages.read',
       data: { chatUid, readBy: fromUserId },
+    });
+
+    return { error: false };
+  }
+
+  /**
+   * Used to receive trigger from microservice when a reaction is added/removed.
+   * @param {Job} job - received object contains payload, owner etc
+   * @returns {Promise<{error: boolean}>}
+   */
+  async sendReaction(job: Job) {
+    const { messageUid, emoji, userId, action, chatUid } = job.payload as {
+      messageUid: string;
+      emoji: string;
+      userId: number;
+      action: 'add' | 'remove';
+      chatUid: string;
+    };
+
+    console.log('Sending reaction event:', { messageUid, emoji, userId, action, chatUid });
+
+    // Get chat to find participants
+    const { data: chat } = await this.chatService.findOne({
+      action: 'findone',
+      owner: job.owner,
+      payload: {
+        where: { uid: chatUid },
+      },
+    });
+
+    if (!chat) return { error: true, message: 'Chat not found' };
+
+    const participants = [chat.user1Id, chat.user2Id];
+
+    // Emit to all participants
+    participants.forEach((participantId) => {
+      console.log('Propagating to user:', participantId);
+      this.redisPropagatorService.propagateEvent({
+        userId: `${participantId}`,
+        event: 'message:reaction',
+        data: { messageUid, emoji, userId, action },
+      });
     });
 
     return { error: false };

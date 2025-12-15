@@ -80,6 +80,37 @@ export class AppGateway
     );
   }
 
+  @SubscribeMessage('user.reaction')
+  async handleReactionEvent(
+    client: AuthenticatedSocket,
+    data: { action: 'add' | 'remove'; messageUid: string; emoji: string; chatUid: string },
+  ) {
+    this.logger.log(`Reaction ${data.action} from USER_${client.auth?.id}`);
+    
+    await this.msClient.executeJob(
+      APPEVENTS.MESSAGE,
+      new Job({
+        action: data.action === 'add' ? 'addReaction' : 'removeReaction',
+        app: process.env.APP_ID,
+        owner: client.auth,
+        payload: { messageUid: data.messageUid, emoji: data.emoji },
+      }),
+    );
+
+    this.server.to(`chat_${data.chatUid}`).emit('message:reaction', {
+      messageUid: data.messageUid,
+      emoji: data.emoji,
+      userId: client.auth.id,
+      action: data.action,
+    });
+  }
+
+  @SubscribeMessage('join')
+  handleJoin(client: AuthenticatedSocket, room: string) {
+    client.join(room);
+    this.logger.log(`USER_${client.auth?.id} joined room ${room}`);
+  }
+
   @UseInterceptors(RedisPropagatorInterceptor)
   @SubscribeMessage('user.typing')
   async handleTypingEvent(client: AuthenticatedSocket, data: any) {

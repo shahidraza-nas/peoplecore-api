@@ -195,6 +195,7 @@ export class ChatService extends ModelService<Chat> {
           'fromUserId',
           'toUserId',
           'created_at',
+          'reactions',
         ],
         order: [[Sequelize.literal('id'), 'DESC']],
         where: {

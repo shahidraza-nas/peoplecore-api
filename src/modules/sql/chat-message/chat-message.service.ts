@@ -284,4 +284,110 @@ export class ChatMessageService extends ModelService<ChatMessage> {
       console.log(error);
     }
   }
+
+  async addReaction(job: Job) {
+    const { owner, payload } = job;
+    const { messageUid, emoji } = payload as { messageUid: string; emoji: string };
+
+    const { data: message } = await this.$db.findOneRecord({
+      action: 'findone',
+      owner,
+      options: {
+        where: { uid: messageUid },
+        include: [
+          {
+            association: 'chat',
+            required: false,
+          },
+        ],
+      },
+    });
+
+    if (!message) throw new NotFoundException('Message not found');
+
+    // Ensure chat is loaded
+    let chatUid = message.chat?.uid;
+    if (!chatUid) {
+      const { data: chat } = await this.chatService.findOne({
+        action: 'findone',
+        owner,
+        payload: {
+          where: { id: message.chatId },
+        },
+      });
+      if (!chat) throw new NotFoundException('Chat not found');
+      chatUid = chat.uid;
+    }
+
+    const currentReactions = message.reactions || {};
+    if (!currentReactions[emoji]) {
+      currentReactions[emoji] = [];
+    }
+    if (!currentReactions[emoji].includes(owner.id)) {
+      currentReactions[emoji].push(owner.id);
+    }
+
+    await this.update({
+      action: 'update',
+      owner,
+      id: message.id,
+      body: { reactions: currentReactions },
+    });
+
+
+    return { data: { messageUid, emoji, reactions: currentReactions, chatUid } };
+  }
+
+  async removeReaction(job: Job) {
+    const { owner, payload } = job;
+    const { messageUid, emoji } = payload as { messageUid: string; emoji: string };
+
+    const { data: message } = await this.$db.findOneRecord({
+      action: 'findone',
+      owner,
+      options: {
+        where: { uid: messageUid },
+        include: [
+          {
+            association: 'chat',
+            required: false,
+          },
+        ],
+      },
+    });
+
+    if (!message) throw new NotFoundException('Message not found');
+
+    // Ensure chat is loaded
+    let chatUid = message.chat?.uid;
+    if (!chatUid) {
+      const { data: chat } = await this.chatService.findOne({
+        action: 'findone',
+        owner,
+        payload: {
+          where: { id: message.chatId },
+        },
+      });
+      if (!chat) throw new NotFoundException('Chat not found');
+      chatUid = chat.uid;
+    }
+
+    const currentReactions = message.reactions || {};
+    if (currentReactions[emoji]) {
+      currentReactions[emoji] = currentReactions[emoji].filter(id => id !== owner.id);
+      if (currentReactions[emoji].length === 0) {
+        delete currentReactions[emoji];
+      }
+    }
+
+    await this.update({
+      action: 'update',
+      owner,
+      id: message.id,
+      body: { reactions: currentReactions },
+    });
+
+
+    return { data: { messageUid, emoji, reactions: currentReactions, chatUid } };
+  }
 }
